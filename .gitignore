@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.npm-cache/
+qa/output/
+.impeccable/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
