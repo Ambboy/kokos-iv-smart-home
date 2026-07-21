@@ -75,7 +75,7 @@ export function buildArchitecture({ manifest, materials }) {
   manifest.rooms.forEach((room) => {
     const baseMaterial = materials.get(room.floorMaterial) ?? materials.get("oak-edinburgh");
     const floorMaterial = baseMaterial.clone();
-    floorMaterial.emissive = new THREE.Color("#86b9a5");
+    floorMaterial.emissive = new THREE.Color("#9b7259");
     floorMaterial.emissiveIntensity = 0;
     const floor = new THREE.Mesh(new THREE.ShapeGeometry(polygonShape(room.polygon)), floorMaterial);
     floor.rotation.x = -Math.PI / 2;
@@ -98,9 +98,9 @@ export function buildArchitecture({ manifest, materials }) {
     const highlightFill = new THREE.Mesh(
       highlightGeometry,
       new THREE.MeshBasicMaterial({
-        color: "#9dc3b3",
+        color: "#d7b870",
         transparent: true,
-        opacity: 0.075,
+        opacity: 0.09,
         depthWrite: false,
         polygonOffset: true,
         polygonOffsetFactor: -2,
@@ -114,7 +114,7 @@ export function buildArchitecture({ manifest, materials }) {
     const highlightOutline = new THREE.LineSegments(
       new THREE.EdgesGeometry(highlightGeometry),
       new THREE.LineBasicMaterial({
-        color: "#b8d9cb",
+        color: "#e6cf96",
         transparent: true,
         opacity: 0.82,
         depthTest: false,
@@ -134,7 +134,7 @@ export function buildArchitecture({ manifest, materials }) {
     labels.add(label);
   });
 
-  const slabMaterial = new THREE.MeshStandardMaterial({ color: "#242a28", roughness: 0.92 });
+  const slabMaterial = new THREE.MeshStandardMaterial({ color: "#232019", roughness: 0.92 });
   const slab = new THREE.Mesh(
     new THREE.ExtrudeGeometry(polygonShape(manifest.shell.exterior), { depth: 0.1, bevelEnabled: false }),
     slabMaterial,
@@ -156,7 +156,7 @@ export function buildArchitecture({ manifest, materials }) {
 
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.ExtrudeGeometry(polygonShape(manifest.shell.exterior), { depth: 0.03, bevelEnabled: false })),
-    new THREE.LineBasicMaterial({ color: "#70807a", transparent: true, opacity: 0.38 }),
+    new THREE.LineBasicMaterial({ color: "#7a7468", transparent: true, opacity: 0.38 }),
   );
   outline.rotation.x = -Math.PI / 2;
   outline.position.y = -0.015;

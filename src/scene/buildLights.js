@@ -436,11 +436,27 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
   emitterMaterial.emissiveIntensity = 0;
 
   const hitTargets = [];
+  const glowMaterial = new THREE.SpriteMaterial({
+    map: glowTexture,
+    color: LIGHT_COLOR,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
   definition.fixtures.forEach((fixture) => {
     group.add(addFixtureVisual(definition, fixture, room, emitterMaterial, hardwareMaterial));
     const hit = createHitTarget(definition, fixture);
     hitTargets.push(hit);
     group.add(hit);
+
+    const kind = fixtureKind(definition, fixture);
+    const glow = new THREE.Sprite(glowMaterial);
+    const glowScale = kind === "pendant" ? 0.85 : kind === "linear" ? 0.58 : 0.48;
+    glow.scale.set(glowScale, glowScale, 1);
+    glow.position.set(fixture.position[0], fixture.position[1] + 0.04, fixture.position[2]);
+    glow.name = `glow-${fixture.id}`;
+    group.add(glow);
   });
   addTrackRails(group, definition, hardwareMaterial);
 
@@ -479,6 +495,7 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
     lights,
     targets,
     zones,
+    glowMaterial,
     materials: [emitterMaterial],
     lightWeights,
     hitTargets,
@@ -572,9 +589,12 @@ export function updateLights(
       light.intensity = rig.maxIntensity * PHYSICAL_LIGHT_SCALE * (rig.lightWeights[index] ?? 1) * level * factor;
     });
     rig.materials.forEach((material) => {
-      material.emissiveIntensity = level * 3.6;
+      material.emissiveIntensity = level * (3.2 + 4 * Math.min(factor, 1.25));
       material.color.copy(LIGHT_COLOR).multiplyScalar(THREE.MathUtils.lerp(0.24, 0.9, level));
     });
+    if (rig.glowMaterial) {
+      rig.glowMaterial.opacity = level * (0.26 + 0.3 * Math.min(factor, 1.2));
+    }
     rig.zones.forEach((zone) => {
       zone.material.opacity = level * (zone.userData.maxOpacity ?? 0.15) * factor;
       zone.visible = level > 0.001 && factor > 0.001;

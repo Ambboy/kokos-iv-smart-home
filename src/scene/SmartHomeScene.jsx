@@ -189,8 +189,8 @@ export function SmartHomeScene({
 
     const scene = new THREE.Scene();
     const presentation = presentationContract(manifest);
-    scene.background = new THREE.Color("#0f1412");
-    scene.fog = new THREE.FogExp2("#0f1412", 0.008);
+    scene.background = new THREE.Color("#100f0d");
+    scene.fog = new THREE.FogExp2("#100f0d", 0.008);
 
     const camera = new THREE.PerspectiveCamera(35, 1, 0.08, 90);
     camera.position.fromArray(presentation.presets.dollhouse.position);
@@ -259,7 +259,7 @@ export function SmartHomeScene({
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(presentation.span * 14, presentation.span * 14),
-      new THREE.MeshBasicMaterial({ color: "#101513" }),
+      new THREE.MeshBasicMaterial({ color: "#12100d" }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(presentation.center[0], -0.13, presentation.center[1]);
@@ -294,6 +294,7 @@ export function SmartHomeScene({
       ground,
       cameraGoal,
       flightMode: false,
+      sceneLightFactor: 0.55,
       mode,
       reducedMotion,
       presentation,
@@ -391,7 +392,11 @@ export function SmartHomeScene({
           && !runtime.debugPresentation,
         focusOccluders: runtime.viewPreset === "room",
       });
-      updateLights(lights, deviceMapRef.current, delta, runtime.reducedMotion);
+      updateLights(lights, delta, {
+        devices: deviceMapRef.current,
+        sceneFactor: runtime.sceneLightFactor,
+        reducedMotion: runtime.reducedMotion,
+      });
       updateCurtains(curtains, deviceMapRef.current, delta, runtime.reducedMotion);
       renderer.render(scene, camera);
     };
@@ -444,12 +449,17 @@ export function SmartHomeScene({
     if (!runtime) return;
     const evening = scenarioId === "evening";
     const away = scenarioId === "away";
-    runtime.scene.background.set(evening ? "#090d0c" : away ? "#050706" : "#0f1412");
+    runtime.scene.background.set(evening ? "#0a0908" : away ? "#060505" : "#100f0d");
     runtime.scene.fog.color.copy(runtime.scene.background);
-    runtime.ground.material.color.set(evening ? "#090d0c" : away ? "#050706" : "#101513");
-    runtime.hemisphere.intensity = away ? 0.38 : evening ? 0.58 : 1.9;
-    runtime.sun.intensity = away ? 0.12 : evening ? 0.28 : 3.2;
-    runtime.renderer.toneMappingExposure = evening ? 1.02 : away ? 0.68 : 1.08;
+    runtime.ground.material.color.set(evening ? "#0a0908" : away ? "#060505" : "#12100d");
+    runtime.scene.environmentIntensity = evening ? 0.16 : away ? 0.08 : 1;
+    runtime.hemisphere.color.set(evening ? "#e8d3b4" : away ? "#b8bec4" : "#dfe3dc");
+    runtime.hemisphere.groundColor.set(evening ? "#241b12" : away ? "#14120f" : "#2a2522");
+    runtime.hemisphere.intensity = away ? 0.3 : evening ? 0.5 : 1.9;
+    runtime.sun.color.set(evening ? "#ffc98f" : "#fff2d8");
+    runtime.sun.intensity = away ? 0.1 : evening ? 0.22 : 3.2;
+    runtime.renderer.toneMappingExposure = evening ? 1.16 : away ? 0.72 : 1.08;
+    runtime.sceneLightFactor = evening ? 1.2 : away ? 0.85 : 0.55;
   }, [scenarioId]);
 
   useEffect(() => {
