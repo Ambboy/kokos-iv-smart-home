@@ -2,21 +2,21 @@
 
 ## Direction
 
-Quiet architectural control room: cool graphite interface surfaces frame a warm, materially faithful interior. The 3D apartment is always the visual anchor; controls behave like precise instruments rather than decorative cards.
+Quiet architectural control room: warm graphite interface surfaces frame a materially faithful brass-and-oak interior. The 3D apartment is always the visual anchor; controls behave like precise instruments rather than decorative cards.
 
 ## Color
 
-- Canvas: `#0b0f0f`
-- Elevated canvas: `#111716`
-- Panel: `rgba(18, 25, 24, 0.86)`
-- Primary text: `#eef2ee`
-- Secondary text: `#98a39f`
-- Hairline: `rgba(238, 242, 238, 0.12)`
-- Accent / selection: `#9dc3b3`
+- Canvas: `#0c0b0a`
+- Elevated canvas: `#14120f`
+- Panel: `rgba(21, 19, 16, 0.9)`
+- Primary text: `#f1eee7`
+- Secondary text: `#a29b8f`
+- Hairline: `rgba(241, 238, 231, 0.12)`
+- Accent / selection: `#d3b26a`
 - Confirmed: `#83c7a3`
 - Pending: `#d7b870`
 - Error: `#e58c82`
-- Offline: `#707a77`
+- Offline: `#948e85`
 
 Scene colors are source-derived and separate from UI semantics: dark Edinburgh oak, light veined stone, warm greige walls, black profiles and restrained bronze hardware.
 
@@ -28,15 +28,15 @@ One neutral sans-serif stack: `Inter, ui-sans-serif, system-ui, -apple-system, B
 
 - Desktop: 68 px top bar, 244 px room rail, full-bleed WebGL stage, context inspector up to 356 px.
 - Tablet: compact room rail and bottom scene controls.
-- Mobile: full stage with two bottom sheets; never exceed viewport width.
+- Mobile: full stage, one compact mode row, collapsible scenario/camera deck, horizontal room rail and collapsible device sheet; never exceed viewport width.
 - Minimum interactive target: 44×44 px.
 
 ## Components
 
 - Top status line with project title, demo badge and connection state.
 - Three-mode segmented control: Overview, Rooms, Devices.
-- Room rail with area and confidence marker.
-- Device rows with explicit command state and physical value.
+- Room rail with area, confidence marker and one shared provenance legend.
+- Device rows with explicit command state, physical value and shared provenance legend; light groups use a switch plus level slider.
 - Scenario buttons for Day, Evening and Away.
 - Debug tray for source overlay, bounds, collision markers and door arcs.
 

@@ -67,6 +67,8 @@ export function RoomRail({
             const confidence = room.confidence ?? "confirmed";
             const confidenceLabel =
               CONFIDENCE_LABELS[confidence] ?? CONFIDENCE_LABELS.provisional;
+            const areaLabel = formatArea(room);
+            const accessibleLabel = `${room.name}, ${areaLabel}. Достоверность: ${confidenceLabel}`;
 
             return (
               <button
@@ -75,17 +77,20 @@ export function RoomRail({
                 className="ui-room-button"
                 data-confidence={confidence}
                 aria-pressed={selected}
+                aria-label={accessibleLabel}
+                title={accessibleLabel}
                 disabled={room.disabled}
                 onClick={() => onSelectRoom?.(room.id)}
               >
                 <span className="ui-room-main">
                   <span className="ui-room-name">{room.name}</span>
-                  <span className="ui-room-area">{formatArea(room)}</span>
+                  <span className="ui-room-area">{areaLabel}</span>
                 </span>
-                <span className="ui-confidence" data-confidence={confidence}>
-                  <span className="ui-confidence-dot" aria-hidden="true" />
-                  <span>{confidenceLabel}</span>
-                </span>
+                <span
+                  className="ui-confidence-dot"
+                  data-confidence={confidence}
+                  aria-hidden="true"
+                />
               </button>
             );
           })}
@@ -93,6 +98,19 @@ export function RoomRail({
       ) : (
         <p className="ui-empty-state">{emptyMessage}</p>
       )}
+
+      <div className="ui-provenance-legend ui-room-provenance" aria-label="Легенда достоверности помещений">
+        {Object.entries(CONFIDENCE_LABELS).map(([confidence, label]) => (
+          <span key={confidence} className="ui-provenance-item">
+            <span
+              className="ui-confidence-dot"
+              data-confidence={confidence}
+              aria-hidden="true"
+            />
+            <span>{label}</span>
+          </span>
+        ))}
+      </div>
     </aside>
   );
 }

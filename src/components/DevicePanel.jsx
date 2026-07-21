@@ -1,4 +1,5 @@
 import {
+  CaretDown,
   CheckCircle,
   Circle,
   CircleNotch,
@@ -29,8 +30,9 @@ const DEVICE_KIND_META = {
 };
 
 const CONFIDENCE_LABELS = {
+  confirmed: "Подтверждено проектом",
   provisional: "Требует подтверждения",
-  proxy: "Прокси",
+  proxy: "Прокси-геометрия",
 };
 
 /**
@@ -55,6 +57,18 @@ const CONFIDENCE_LABELS = {
  */
 
 /**
+ * @typedef {Object} LightControl
+ * @property {"light"} type
+ * @property {boolean} on
+ * @property {number} level
+ * @property {number} [min]
+ * @property {number} [max]
+ * @property {number} [step]
+ * @property {string} [powerAction] По умолчанию `toggle`.
+ * @property {string} [levelAction] По умолчанию `setLevel`.
+ */
+
+/**
  * @typedef {Object} ActionOption
  * @property {string} id
  * @property {string} label
@@ -76,7 +90,7 @@ const CONFIDENCE_LABELS = {
  * @property {string} [label]
  */
 
-/** @typedef {ToggleControl|RangeControl|ActionsControl|ReadonlyControl} DeviceControl */
+/** @typedef {ToggleControl|LightControl|RangeControl|ActionsControl|ReadonlyControl} DeviceControl */
 
 /**
  * @typedef {Object} DevicePanelItem
@@ -105,6 +119,8 @@ const CONFIDENCE_LABELS = {
  * @property {DevicePanelItem[]} devices
  * @property {(command: DeviceCommand) => void} onCommand
  * @property {() => void} [onClose]
+ * @property {boolean} [collapsed]
+ * @property {(collapsed: boolean) => void} [onCollapsedChange]
  * @property {boolean} [demoMode]
  * @property {string} [announcement] Текст для вежливого live-region.
  */
@@ -153,6 +169,62 @@ function DeviceControlView({ device, room, onCommand }) {
         <Power aria-hidden="true" size={18} weight={control.value ? "fill" : "regular"} />
         <span>{stateLabel}</span>
       </button>
+    );
+  }
+
+  if (control.type === "light") {
+    const rangeId = `device-${device.id}-range`;
+    const powerLabel = control.on ? "Включено" : "Выключено";
+
+    return (
+      <div className="ui-light-control">
+        <button
+          type="button"
+          className="ui-device-toggle"
+          role="switch"
+          aria-checked={control.on}
+          aria-label={`${device.name}: ${powerLabel}`}
+          disabled={disabled}
+          onClick={() =>
+            emitCommand(
+              onCommand,
+              room,
+              device,
+              control.powerAction ?? "toggle",
+              !control.on,
+            )
+          }
+        >
+          <Power aria-hidden="true" size={18} weight={control.on ? "fill" : "regular"} />
+          <span>{powerLabel}</span>
+        </button>
+
+        <div className="ui-range-control">
+          <div className="ui-range-meta">
+            <label htmlFor={rangeId}>Яркость</label>
+            <output htmlFor={rangeId}>{`${control.level}%`}</output>
+          </div>
+          <input
+            id={rangeId}
+            type="range"
+            min={control.min ?? 0}
+            max={control.max ?? 100}
+            step={control.step ?? 5}
+            value={control.level}
+            disabled={state === "offline"}
+            aria-busy={state === "pending"}
+            onChange={(event) =>
+              emitCommand(
+                onCommand,
+                room,
+                device,
+                control.levelAction ?? "setLevel",
+                Number(event.currentTarget.value),
+              )
+            }
+          />
+        </div>
+      </div>
     );
   }
 
@@ -227,6 +299,8 @@ export function DevicePanel({
   devices = [],
   onCommand,
   onClose,
+  collapsed = false,
+  onCollapsedChange,
   demoMode = true,
   announcement,
 }) {
@@ -240,90 +314,128 @@ export function DevicePanel({
       : "Панель устройств готова");
 
   return (
-    <aside className="ui-device-panel" aria-label="Устройства выбранного помещения">
+    <aside
+      className="ui-device-panel"
+      data-collapsed={collapsed}
+      aria-label="Устройства выбранного помещения"
+    >
       <div className="ui-device-panel-header">
         <h2>{room?.name ?? "Выберите помещение"}</h2>
-        {onClose ? (
-          <button
-            type="button"
-            className="ui-icon-button"
-            onClick={onClose}
-            aria-label="Закрыть панель устройств"
-          >
-            <X aria-hidden="true" size={19} />
-          </button>
-        ) : null}
+        <div className="ui-device-panel-actions">
+          {onCollapsedChange ? (
+            <button
+              type="button"
+              className="ui-icon-button ui-device-collapse"
+              aria-controls="device-panel-content"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? "Развернуть панель устройств" : "Свернуть панель устройств"}
+              onClick={() => onCollapsedChange(!collapsed)}
+            >
+              <CaretDown aria-hidden="true" size={19} />
+            </button>
+          ) : null}
+          {onClose ? (
+            <button
+              type="button"
+              className="ui-icon-button"
+              onClick={onClose}
+              aria-label="Закрыть панель устройств"
+            >
+              <X aria-hidden="true" size={19} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      {demoMode ? (
-        <p className="ui-demo-note">
-          Демо-режим. Подтверждение команд эмулируется без подключения к объекту.
-        </p>
-      ) : null}
+      <div id="device-panel-content" className="ui-device-panel-content">
+        {demoMode ? (
+          <p className="ui-demo-note">
+            Демо-режим. Подтверждение команд эмулируется без подключения к объекту.
+          </p>
+        ) : null}
 
-      <span className="ui-visually-hidden" role="status" aria-live="polite">
-        {liveText}
-      </span>
+        <span className="ui-visually-hidden" role="status" aria-live="polite">
+          {liveText}
+        </span>
 
-      {!room ? (
-        <p className="ui-empty-state">
-          Выберите помещение в списке или нажмите на него в 3D-сцене.
-        </p>
-      ) : devices.length === 0 ? (
-        <p className="ui-empty-state">
-          Для этого помещения управляемые устройства не описаны.
-        </p>
-      ) : (
-        <div className="ui-device-list">
-          {devices.map((device) => {
-            const kindMeta = DEVICE_KIND_META[device.kind] ?? {
-              label: "Устройство",
-              Icon: Power,
-            };
-            const state = normalizeCommandState(device.commandState);
-            const stateMeta = COMMAND_STATE_META[state];
-            const DeviceIcon = kindMeta.Icon;
-            const StateIcon = stateMeta.Icon;
-            const confidenceLabel = CONFIDENCE_LABELS[device.confidence];
-
-            return (
-              <article
-                key={device.id}
-                className="ui-device-row"
-                data-command-state={state}
-                aria-busy={state === "pending"}
-              >
-                <div className="ui-device-row-heading">
-                  <span className="ui-device-kind-icon" aria-hidden="true">
-                    <DeviceIcon size={20} />
-                  </span>
-                  <span className="ui-device-copy">
-                    <strong>{device.name}</strong>
-                    <span>{device.detail ?? kindMeta.label}</span>
-                  </span>
-                  <span className="ui-command-state" data-state={state}>
-                    <StateIcon
-                      aria-hidden="true"
-                      className={state === "pending" ? "ui-spin" : undefined}
-                      size={15}
-                      weight={state === "confirmed" ? "fill" : "regular"}
-                    />
-                    <span>{stateMeta.label}</span>
-                  </span>
-                </div>
-
-                {confidenceLabel ? (
-                  <span className="ui-source-flag" data-confidence={device.confidence}>
-                    {confidenceLabel}
-                  </span>
-                ) : null}
-
-                <DeviceControlView device={device} room={room} onCommand={onCommand} />
-              </article>
-            );
-          })}
+        <div className="ui-source-flag" aria-label="Легенда достоверности устройств">
+          {Object.entries(CONFIDENCE_LABELS).map(([confidence, label]) => (
+            <span key={confidence} className="ui-provenance-item">
+              <span
+                className="ui-confidence-dot"
+                data-confidence={confidence}
+                aria-hidden="true"
+              />
+              <span>{label}</span>
+            </span>
+          ))}
         </div>
-      )}
+
+        {!room ? (
+          <p className="ui-empty-state">
+            Выберите помещение в списке или нажмите на него в 3D-сцене.
+          </p>
+        ) : devices.length === 0 ? (
+          <p className="ui-empty-state">
+            Для этого помещения управляемые устройства не описаны.
+          </p>
+        ) : (
+          <div className="ui-device-list">
+            {devices.map((device) => {
+              const kindMeta = DEVICE_KIND_META[device.kind] ?? {
+                label: "Устройство",
+                Icon: Power,
+              };
+              const state = normalizeCommandState(device.commandState);
+              const stateMeta = COMMAND_STATE_META[state];
+              const DeviceIcon = kindMeta.Icon;
+              const StateIcon = stateMeta.Icon;
+              const confidence = device.confidence ?? "confirmed";
+              const confidenceLabel =
+                CONFIDENCE_LABELS[confidence] ?? CONFIDENCE_LABELS.provisional;
+
+              return (
+                <article
+                  key={device.id}
+                  className="ui-device-row"
+                  data-command-state={state}
+                  aria-busy={state === "pending"}
+                >
+                  <div className="ui-device-row-heading">
+                    <span className="ui-device-kind-icon" aria-hidden="true">
+                      <DeviceIcon size={20} />
+                    </span>
+                    <span className="ui-device-copy">
+                      <span className="ui-device-name-line">
+                        <strong>{device.name}</strong>
+                        <span
+                          className="ui-confidence-dot"
+                          data-confidence={confidence}
+                          role="img"
+                          aria-label={`Достоверность: ${confidenceLabel}`}
+                          title={confidenceLabel}
+                        />
+                      </span>
+                      <span>{device.detail ?? kindMeta.label}</span>
+                    </span>
+                    <span className="ui-command-state" data-state={state}>
+                      <StateIcon
+                        aria-hidden="true"
+                        className={state === "pending" ? "ui-spin" : undefined}
+                        size={15}
+                        weight={state === "confirmed" ? "fill" : "regular"}
+                      />
+                      <span>{stateMeta.label}</span>
+                    </span>
+                  </div>
+
+                  <DeviceControlView device={device} room={room} onCommand={onCommand} />
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

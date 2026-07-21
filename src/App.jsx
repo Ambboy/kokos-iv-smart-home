@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SlidersHorizontal } from "@phosphor-icons/react";
 import {
   CameraToolbar,
   DebugPanel,
@@ -65,12 +66,14 @@ function toUiDevice(device) {
   let control;
   if (device.kind === "light") {
     control = {
-      type: "actions",
-      options: [
-        { id: "toggle", label: device.on ? "Выключить" : "Включить", action: "toggle", value: !device.on },
-        { id: "dim", label: "30%", action: "setLevel", value: 30 },
-        { id: "full", label: "100%", action: "setLevel", value: 100 },
-      ],
+      type: "light",
+      on: device.on,
+      level: device.level,
+      min: 0,
+      max: 100,
+      step: 1,
+      powerAction: "toggle",
+      levelAction: "setLevel",
     };
   } else if (device.kind === "curtain") {
     control = {
@@ -113,6 +116,8 @@ export default function App() {
   const [sceneReady, setSceneReady] = useState(false);
   const [announcement, setAnnouncement] = useState("Демонстрационная панель готова");
   const [debugOpen, setDebugOpen] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [devicePanelCollapsed, setDevicePanelCollapsed] = useState(false);
   const [debugState, setDebugState] = useState({
     bounds: false,
     collisions: false,
@@ -157,12 +162,16 @@ export default function App() {
     if (!device) return;
     setSelectedRoomId(device.roomId);
     setMode("devices");
+    setDevicePanelCollapsed(false);
+    setMobileControlsOpen(false);
     setAnnouncement(`Открыто управление: ${device.name}`);
   }, [devices]);
 
   const commandDevice = useCallback(({ deviceId, action, value }) => {
     const current = devices.find((item) => item.id === deviceId);
-    const canReplacePendingRange = current?.kind === "climate" && action === "setLevel";
+    const canReplacePendingRange =
+      (current?.kind === "climate" || current?.kind === "light")
+      && action === "setLevel";
     if (!current || current.state === "offline" || (current.state === "pending" && !canReplacePendingRange)) return;
     const previousTimer = deviceTimersRef.current.get(deviceId);
     if (previousTimer) {
@@ -179,7 +188,10 @@ export default function App() {
       setDevices((items) => items.map((item) => {
         if (item.id !== deviceId) return item;
         const next = { ...item, state: "confirmed" };
-        if (action === "toggle") next.on = Boolean(value);
+        if (action === "toggle") {
+          next.on = Boolean(value);
+          if (next.on && item.kind === "light" && Number(item.level) <= 0) next.level = 100;
+        }
         if (action === "setLevel") {
           next.level = Number(value);
           next.on = item.kind === "light" ? Number(value) > 0 : true;
@@ -238,6 +250,16 @@ export default function App() {
     confidence: room.confidence,
   })), []);
 
+  const changeMode = useCallback((next) => {
+    setMode(next);
+    setMobileControlsOpen(false);
+    if (next === "overview") setViewPreset("dollhouse");
+    if (next === "rooms") setViewPreset("room");
+    if (next === "devices") setDevicePanelCollapsed(false);
+  }, []);
+
+  const presentationLayoutKey = `${mode}:${mobileControlsOpen}:${devicePanelCollapsed}`;
+
   const debugOptions = [
     { id: "bounds", label: "Границы объектов", enabled: debugState.bounds, description: "Bounding volumes мебели и стен" },
     { id: "doorArcs", label: "Дверные дуги", enabled: debugState.doorArcs, description: "Траектории открывания полотен" },
@@ -277,6 +299,7 @@ export default function App() {
           qaGlazingId={qa.glazingId}
           qaGlazingSide={qa.glazingSide}
           collisionReport={manifestValidation}
+          presentationLayoutKey={presentationLayoutKey}
           onReady={() => setSceneReady(true)}
         />
       </div>
@@ -287,19 +310,60 @@ export default function App() {
         <>
           <TopBar projectName={projectManifest.meta.title} subtitle={projectManifest.meta.subtitle} connectionStatus="demo" demoMode />
           <RoomRail rooms={roomsForUi} selectedRoomId={selectedRoomId} onSelectRoom={selectRoom} />
-          <ModeSwitch value={mode} onChange={(next) => {
-            setMode(next);
-            if (next === "overview") setViewPreset("dollhouse");
-            if (next === "rooms") setViewPreset("room");
-          }} />
+          <ModeSwitch value={mode} onChange={changeMode} />
+          <button
+            type="button"
+            className="ui-mobile-controls-toggle"
+            aria-controls="secondary-scene-controls"
+            aria-expanded={mobileControlsOpen}
+            aria-label={mobileControlsOpen ? "Скрыть сценарии и камеру" : "Показать сценарии и камеру"}
+            onClick={() => setMobileControlsOpen((open) => !open)}
+          >
+            <SlidersHorizontal aria-hidden="true" size={19} />
+            <span className="ui-visually-hidden">Сценарии и камера</span>
+          </button>
           {mode === "devices" ? (
-            <DevicePanel room={selectedRoom} devices={roomDevices} onCommand={commandDevice} demoMode announcement={announcement} onClose={() => setMode("rooms")} />
+            <DevicePanel
+              room={selectedRoom}
+              devices={roomDevices}
+              onCommand={commandDevice}
+              collapsed={devicePanelCollapsed}
+              onCollapsedChange={setDevicePanelCollapsed}
+              demoMode
+              announcement={announcement}
+              onClose={() => {
+                setMode("rooms");
+                setDevicePanelCollapsed(false);
+              }}
+            />
           ) : null}
-          <ScenarioBar activeScenarioId={scenarioId} pendingScenarioId={pendingScenarioId} onSelect={applyScenario} />
-          <CameraToolbar value={viewPreset} onChange={(preset) => {
-            setFlightMode(false);
-            setViewPreset(preset);
-          }} onFlight={() => setFlightMode(true)} flightMode={flightMode} />
+          <div
+            id="secondary-scene-controls"
+            className="ui-secondary-controls"
+            data-mobile-open={mobileControlsOpen}
+          >
+            <ScenarioBar
+              activeScenarioId={scenarioId}
+              pendingScenarioId={pendingScenarioId}
+              onSelect={(nextScenarioId) => {
+                applyScenario(nextScenarioId);
+                setMobileControlsOpen(false);
+              }}
+            />
+            <CameraToolbar
+              value={viewPreset}
+              onChange={(preset) => {
+                setFlightMode(false);
+                setViewPreset(preset);
+                setMobileControlsOpen(false);
+              }}
+              onFlight={() => {
+                setMobileControlsOpen(false);
+                setFlightMode(true);
+              }}
+              flightMode={flightMode}
+            />
+          </div>
           <DebugPanel
             open={debugOpen}
             onOpenChange={setDebugOpen}

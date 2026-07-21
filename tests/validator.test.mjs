@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as THREE from "three";
 
 import {
   buildFurnitureColliders,
@@ -11,7 +12,61 @@ import {
   validateManifestCollisions,
 } from "../src/scene/collisionValidator.js";
 import projectManifest from "../src/data/project-manifest.js";
+import { buildFurniture } from "../src/scene/buildFurniture.js";
 import { validateManifest } from "../src/scene/manifestValidator.js";
+import { createMaterialRegistry } from "../src/scene/sceneUtils.js";
+
+const PROCEDURAL_MATERIAL_IDS = [
+  "oak-edinburgh",
+  "oak-dark",
+  "stone-statuario",
+  "stone-calacatta",
+  "stone-calce",
+  "stone-cristallo",
+  "textile-warm",
+  "textile-olive",
+  "textile-ink",
+  "wall-warm-greige",
+  "charcoal-entrance",
+];
+
+test("required material textures are deterministic and headless", () => {
+  assert.equal(globalThis.document, undefined);
+  const firstRegistry = createMaterialRegistry(projectManifest);
+  const secondRegistry = createMaterialRegistry(projectManifest);
+  const proceduralIds = new Set(PROCEDURAL_MATERIAL_IDS);
+
+  for (const definition of projectManifest.materials) {
+    const first = firstRegistry.get(definition.id);
+    const second = secondRegistry.get(definition.id);
+    assert.equal(first.color.getHexString(), new THREE.Color(definition.color).getHexString());
+
+    if (!proceduralIds.has(definition.id)) {
+      assert.equal(first.map, null, `${definition.id} unexpectedly received a procedural map`);
+      assert.equal(first.bumpMap, null, `${definition.id} unexpectedly received a procedural bump map`);
+      continue;
+    }
+
+    assert.equal(first.map?.isDataTexture, true, `${definition.id} is missing its DataTexture map`);
+    assert.equal(first.bumpMap?.isDataTexture, true, `${definition.id} is missing its DataTexture bump map`);
+    assert.equal(first.map.colorSpace, THREE.SRGBColorSpace);
+    assert.equal(first.bumpMap.colorSpace, THREE.NoColorSpace);
+    assert.equal(first.map.wrapS, THREE.RepeatWrapping);
+    assert.equal(first.map.wrapT, THREE.RepeatWrapping);
+    assert.ok(first.map.version > 0);
+    assert.ok(first.bumpMap.version > 0);
+    assert.deepEqual(first.map.image.data, second.map.image.data, `${definition.id} map must be deterministic`);
+    assert.deepEqual(first.bumpMap.image.data, second.bumpMap.image.data, `${definition.id} bump map must be deterministic`);
+  }
+});
+
+test("enriched furniture proxies build headlessly inside their manifest envelopes", () => {
+  const materials = createMaterialRegistry(projectManifest);
+  const furniture = buildFurniture({ manifest: projectManifest, materials });
+
+  assert.equal(furniture.items.size, projectManifest.furniture.length);
+  assert.ok(furniture.pickables.length > projectManifest.furniture.length);
+});
 
 const source = Object.freeze({
   file: "fixture-design.pdf",

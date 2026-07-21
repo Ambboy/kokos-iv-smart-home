@@ -59,6 +59,8 @@ function presentationSafeFrame(host, mode) {
   const roomRail = rect(".ui-room-rail");
   const devicePanel = rect(".ui-device-panel");
   const modeSwitch = rect(".ui-mode-switch");
+  const mobileControlsToggle = rect(".ui-mobile-controls-toggle");
+  const secondaryControls = rect(".ui-secondary-controls");
   const scenarioBar = rect(".ui-scenario-bar");
   const cameraToolbar = rect(".ui-camera-toolbar");
   const mobile = hostRect.width <= 820;
@@ -69,6 +71,8 @@ function presentationSafeFrame(host, mode) {
     frame.top = Math.max(
       topbar?.bottom ?? 0,
       modeSwitch?.bottom ?? 0,
+      mobileControlsToggle?.bottom ?? 0,
+      secondaryControls?.bottom ?? 0,
       scenarioBar?.bottom ?? 0,
       cameraToolbar?.bottom ?? 0,
     ) + 14;
@@ -166,6 +170,7 @@ export function SmartHomeScene({
   qaGlazingId,
   qaGlazingSide,
   collisionReport,
+  presentationLayoutKey,
   onReady,
 }) {
   const hostRef = useRef(null);
@@ -428,7 +433,7 @@ export function SmartHomeScene({
     runtime.architecture.labels.visible = mode === "rooms";
     const { width, height } = hostRef.current?.getBoundingClientRect() ?? {};
     if (width && height) applyPresentationSafeFrame(runtime, hostRef.current, width, height);
-  }, [mode, selectedRoomId]);
+  }, [mode, selectedRoomId, presentationLayoutKey]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
