@@ -160,6 +160,7 @@ export function SmartHomeScene({
   selectedRoomId,
   onSelectRoom,
   onSelectDevice,
+  onActivateDevice,
   scenarioId,
   viewPreset,
   debugState,
@@ -177,7 +178,7 @@ export function SmartHomeScene({
   const runtimeRef = useRef(null);
   const devicesRef = useRef(devices);
   const deviceMapRef = useRef(new Map(devices.map((device) => [device.id, device])));
-  const callbacksRef = useRef({ onSelectRoom, onSelectDevice, onFlightModeChange });
+  const callbacksRef = useRef({ onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange });
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -185,8 +186,8 @@ export function SmartHomeScene({
   }, [devices]);
 
   useEffect(() => {
-    callbacksRef.current = { onSelectRoom, onSelectDevice, onFlightModeChange };
-  }, [onSelectRoom, onSelectDevice, onFlightModeChange]);
+    callbacksRef.current = { onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange };
+  }, [onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -194,15 +195,15 @@ export function SmartHomeScene({
 
     const scene = new THREE.Scene();
     const presentation = presentationContract(manifest);
-    scene.background = new THREE.Color("#100f0d");
-    scene.fog = new THREE.FogExp2("#100f0d", 0.008);
+    scene.background = new THREE.Color("#292720");
+    scene.fog = new THREE.FogExp2("#292720", 0.006);
 
     const camera = new THREE.PerspectiveCamera(35, 1, 0.08, 90);
     camera.position.fromArray(presentation.presets.dollhouse.position);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 0.92;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
@@ -220,17 +221,18 @@ export function SmartHomeScene({
     controls.enableDamping = !reducedMotion;
     controls.dampingFactor = 0.065;
     controls.target.fromArray(presentation.presets.dollhouse.target);
+    controls.enablePan = false;
     controls.minDistance = 0.85;
     controls.maxDistance = 38;
     controls.minPolarAngle = 0.08;
     controls.maxPolarAngle = Math.PI * 0.48;
-    controls.zoomToCursor = true;
-    controls.screenSpacePanning = true;
+    controls.zoomToCursor = false;
+    controls.screenSpacePanning = false;
     controls.update();
 
-    const hemisphere = new THREE.HemisphereLight(0xcbdad3, 0x2a2522, 1.85);
+    const hemisphere = new THREE.HemisphereLight(0xd9ddcf, 0x4a3d31, 0.82);
     scene.add(hemisphere);
-    const sun = new THREE.DirectionalLight(0xfff2d8, 3.2);
+    const sun = new THREE.DirectionalLight(0xffe4bd, 1.55);
     sun.position.set(
       presentation.center[0] - presentation.span * 0.55,
       presentation.span * 0.92,
@@ -264,7 +266,7 @@ export function SmartHomeScene({
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(presentation.span * 14, presentation.span * 14),
-      new THREE.MeshBasicMaterial({ color: "#12100d" }),
+      new THREE.MeshBasicMaterial({ color: "#242119" }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(presentation.center[0], -0.13, presentation.center[1]);
@@ -352,7 +354,10 @@ export function SmartHomeScene({
       const targets = [...lights.hitTargets, ...curtains.hitTargets, ...architecture.floorMeshes];
       const hit = raycaster.intersectObjects(targets, true)[0]?.object;
       if (!hit) return;
-      if (hit.userData.deviceId) callbacksRef.current.onSelectDevice?.(hit.userData.deviceId);
+      if (hit.userData.deviceId) {
+        callbacksRef.current.onActivateDevice?.(hit.userData.deviceId);
+        return;
+      }
       if (hit.userData.roomId) callbacksRef.current.onSelectRoom?.(hit.userData.roomId);
     };
     const onKeyDown = (event) => {
@@ -454,17 +459,17 @@ export function SmartHomeScene({
     if (!runtime) return;
     const evening = scenarioId === "evening";
     const away = scenarioId === "away";
-    runtime.scene.background.set(evening ? "#0a0908" : away ? "#060505" : "#100f0d");
+    runtime.scene.background.set(evening ? "#17130f" : away ? "#0b0a09" : "#292720");
     runtime.scene.fog.color.copy(runtime.scene.background);
-    runtime.ground.material.color.set(evening ? "#0a0908" : away ? "#060505" : "#12100d");
-    runtime.scene.environmentIntensity = evening ? 0.16 : away ? 0.08 : 1;
-    runtime.hemisphere.color.set(evening ? "#e8d3b4" : away ? "#b8bec4" : "#dfe3dc");
-    runtime.hemisphere.groundColor.set(evening ? "#241b12" : away ? "#14120f" : "#2a2522");
-    runtime.hemisphere.intensity = away ? 0.3 : evening ? 0.5 : 1.9;
-    runtime.sun.color.set(evening ? "#ffc98f" : "#fff2d8");
-    runtime.sun.intensity = away ? 0.1 : evening ? 0.22 : 3.2;
-    runtime.renderer.toneMappingExposure = evening ? 1.16 : away ? 0.72 : 1.08;
-    runtime.sceneLightFactor = evening ? 1.2 : away ? 0.85 : 0.55;
+    runtime.ground.material.color.set(evening ? "#15110d" : away ? "#090807" : "#242119");
+    runtime.scene.environmentIntensity = evening ? 0.22 : away ? 0.08 : 0.58;
+    runtime.hemisphere.color.set(evening ? "#d9c2a4" : away ? "#aeb5b2" : "#d9ddcf");
+    runtime.hemisphere.groundColor.set(evening ? "#332318" : away ? "#151310" : "#4a3d31");
+    runtime.hemisphere.intensity = away ? 0.22 : evening ? 0.38 : 0.82;
+    runtime.sun.color.set(evening ? "#ffbd80" : "#ffe4bd");
+    runtime.sun.intensity = away ? 0.08 : evening ? 0.18 : 1.55;
+    runtime.renderer.toneMappingExposure = evening ? 0.98 : away ? 0.66 : 0.92;
+    runtime.sceneLightFactor = evening ? 1.05 : away ? 0.72 : 0.42;
   }, [scenarioId]);
 
   useEffect(() => {
