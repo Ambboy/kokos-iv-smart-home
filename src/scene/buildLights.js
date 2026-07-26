@@ -314,7 +314,7 @@ function addTrackRails(group, definition, hardwareMaterial) {
 
 function createHitTarget(definition, fixture) {
   const kind = fixtureKind(definition, fixture);
-  const radius = kind === "pendant" || kind === "surface" ? 0.22 : kind === "linear" ? 0.16 : 0.13;
+  const radius = kind === "pendant" || kind === "surface" ? 0.28 : kind === "linear" ? 0.22 : 0.24;
   const hit = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 8, 6),
     new THREE.MeshBasicMaterial({
