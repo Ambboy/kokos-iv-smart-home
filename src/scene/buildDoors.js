@@ -52,12 +52,13 @@ export function buildDoors({ manifest, materials }) {
       pivot.add(leaf);
       group.add(pivot);
     };
+    const presentationAngle = definition.presentationAngle ?? (leafCount === 2 ? 0.3 : 0.55);
     if (leafCount === 2) {
-      addLeaf(-1, definition.swing * 0.3, leafWidths[0]);
-      addLeaf(1, -definition.swing * 0.3, leafWidths[1]);
+      addLeaf(-1, definition.swing * presentationAngle, leafWidths[0]);
+      addLeaf(1, -definition.swing * presentationAngle, leafWidths[1]);
     } else {
       const side = definition.hinge === "start" ? -1 : 1;
-      addLeaf(side, definition.swing * 0.55, leafWidths[0]);
+      addLeaf(side, definition.swing * presentationAngle, leafWidths[0]);
     }
     root.add(group);
 

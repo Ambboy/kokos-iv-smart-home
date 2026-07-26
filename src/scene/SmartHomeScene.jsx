@@ -4,7 +4,6 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import {
   buildArchitecture,
-  updateArchitecturePresentation,
   updateRoomAppearance,
 } from "./buildArchitecture.js";
 import { buildCurtains, updateCurtains } from "./buildCurtains.js";
@@ -266,7 +265,10 @@ export function SmartHomeScene({
     const sunTarget = new THREE.Object3D();
     sunTarget.position.set(presentation.center[0], 0, presentation.center[1]);
     sun.target = sunTarget;
-    sun.castShadow = true;
+    // The sun is a presentation fill for the roofless dollhouse. Interior
+    // shadow depth comes from room-bounded fixtures; global cabinet shadows
+    // would otherwise travel across rooms through the omitted ceiling.
+    sun.castShadow = false;
     sun.shadow.mapSize.set(1536, 1536);
     const shadowReach = presentation.span * 0.68;
     sun.shadow.camera.left = -shadowReach;
@@ -465,15 +467,6 @@ export function SmartHomeScene({
         }
         controls.update();
       }
-      updateArchitecturePresentation(architecture, {
-        camera,
-        target: controls.target,
-        enabled: !runtime.flightMode
-          && runtime.viewPreset !== "top"
-          && runtime.viewPreset !== "glazing"
-          && !runtime.debugPresentation,
-        focusOccluders: runtime.viewPreset === "room",
-      });
       updateLights(lights, delta, {
         devices: deviceMapRef.current,
         sceneFactor: runtime.sceneLightFactor,
@@ -549,17 +542,18 @@ export function SmartHomeScene({
     if (!runtime) return;
     const evening = scenarioId === "evening";
     const away = scenarioId === "away";
-    runtime.scene.background.set(evening ? "#17130f" : away ? "#0b0a09" : "#292720");
+    runtime.scene.background.set(evening ? "#211a14" : away ? "#0b0a09" : "#292720");
     runtime.scene.fog.color.copy(runtime.scene.background);
-    runtime.ground.material.color.set(evening ? "#15110d" : away ? "#090807" : "#242119");
-    runtime.scene.environmentIntensity = evening ? 0.22 : away ? 0.08 : 0.58;
+    runtime.ground.material.color.set(evening ? "#19130f" : away ? "#090807" : "#242119");
+    runtime.scene.environmentIntensity = evening ? 0.32 : away ? 0.08 : 0.58;
     runtime.hemisphere.color.set(evening ? "#d9c2a4" : away ? "#aeb5b2" : "#d9ddcf");
     runtime.hemisphere.groundColor.set(evening ? "#332318" : away ? "#151310" : "#4a3d31");
-    runtime.hemisphere.intensity = away ? 0.22 : evening ? 0.38 : 0.82;
+    runtime.hemisphere.intensity = away ? 0.22 : evening ? 0.5 : 0.82;
     runtime.sun.color.set(evening ? "#ffbd80" : "#ffe4bd");
     runtime.sun.intensity = away ? 0.08 : evening ? 0.18 : 1.55;
-    runtime.renderer.toneMappingExposure = evening ? 0.98 : away ? 0.66 : 0.92;
-    runtime.sceneLightFactor = evening ? 1.05 : away ? 0.72 : 0.42;
+
+    runtime.renderer.toneMappingExposure = evening ? 1.08 : away ? 0.66 : 0.92;
+    runtime.sceneLightFactor = evening ? 1.18 : away ? 0.72 : 0.42;
   }, [scenarioId, manifest]);
 
   useEffect(() => {

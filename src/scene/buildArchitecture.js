@@ -65,6 +65,35 @@ export function buildWall(wall, manifest, material, heightScale = DISPLAY_WALL_H
   return group;
 }
 
+export function buildShadowWalls(manifest) {
+  const root = new THREE.Group();
+  root.name = "shadow-occlusion-walls";
+  const shadowOnlyMaterial = new THREE.MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: false,
+  });
+
+  manifest.walls.forEach((wall) => {
+    const group = buildWall(wall, manifest, shadowOnlyMaterial, 1);
+    group.name = `shadow-${wall.id}`;
+    group.userData = {
+      ...group.userData,
+      kind: "shadow-wall",
+      wallId: wall.id,
+    };
+    group.traverse((object) => {
+      if (!object.isMesh) return;
+      object.castShadow = true;
+      object.receiveShadow = false;
+      object.name = `shadow-${object.name}`;
+      object.userData = { kind: "shadow-occluder", wallId: wall.id };
+    });
+    root.add(group);
+  });
+
+  return root;
+}
+
 export function buildArchitecture({ manifest, materials }) {
   const root = new THREE.Group();
   root.name = "architecture";
@@ -155,7 +184,8 @@ export function buildArchitecture({ manifest, materials }) {
     root.add(built);
     walls.set(definition.id, built);
   });
-  root.add(labels);
+  const shadowWalls = buildShadowWalls(manifest);
+  root.add(shadowWalls, labels);
 
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.ExtrudeGeometry(polygonShape(manifest.shell.exterior), { depth: 0.03, bevelEnabled: false })),
@@ -176,7 +206,16 @@ export function buildArchitecture({ manifest, materials }) {
     span: Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)),
   };
 
-  return { root, floors, floorMeshes, roomHighlights, walls, labels, presentation };
+  return {
+    root,
+    floors,
+    floorMeshes,
+    roomHighlights,
+    walls,
+    shadowWalls,
+    labels,
+    presentation,
+  };
 }
 
 export function updateRoomAppearance(architecture, selectedRoomId, climateDevices = []) {
@@ -191,75 +230,13 @@ export function updateRoomAppearance(architecture, selectedRoomId, climateDevice
   });
 }
 
-function orientation(a, b, c) {
-  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-}
-
-function pointOnSegment(a, b, point, epsilon = 1e-6) {
-  return point[0] >= Math.min(a[0], b[0]) - epsilon
-    && point[0] <= Math.max(a[0], b[0]) + epsilon
-    && point[1] >= Math.min(a[1], b[1]) - epsilon
-    && point[1] <= Math.max(a[1], b[1]) + epsilon;
-}
-
-function segmentIntersects(a, b, c, d) {
-  const abC = orientation(a, b, c);
-  const abD = orientation(a, b, d);
-  const cdA = orientation(c, d, a);
-  const cdB = orientation(c, d, b);
-  const epsilon = 1e-6;
-  if (Math.abs(abC) <= epsilon && pointOnSegment(a, b, c, epsilon)) return true;
-  if (Math.abs(abD) <= epsilon && pointOnSegment(a, b, d, epsilon)) return true;
-  if (Math.abs(cdA) <= epsilon && pointOnSegment(c, d, a, epsilon)) return true;
-  if (Math.abs(cdB) <= epsilon && pointOnSegment(c, d, b, epsilon)) return true;
-  return (abC > 0) !== (abD > 0) && (cdA > 0) !== (cdB > 0);
-}
-
 /**
- * Applies a camera-aware dollhouse cutaway without mutating wall geometry or
- * manifest data. Validation and debug/glazing views always keep the complete
- * architecture; only the presentation visibility of occluding wall groups is
- * changed.
+ * Shortened dollhouse walls stay visible from every orbit direction. Their
+ * reduced height already preserves sight-lines, so camera-aware hiding would
+ * expose the apartment to the exterior and make the shell appear unstable.
  */
-export function updateArchitecturePresentation(
-  architecture,
-  { camera, target, enabled = true, focusOccluders = false } = {},
-) {
-  if (!camera || !target) return;
-  const cameraPoint = [camera.position.x, camera.position.z];
-  const targetPoint = [target.x, target.z];
-  const viewX = cameraPoint[0] - targetPoint[0];
-  const viewZ = cameraPoint[1] - targetPoint[1];
-  const viewLength = Math.hypot(viewX, viewZ) || 1;
-  const view = [viewX / viewLength, viewZ / viewLength];
-  const nearThreshold = architecture.presentation.span * 0.075;
-
-  architecture.walls.forEach((wallGroup) => {
-    if (!enabled) {
-      wallGroup.visible = true;
-      return;
-    }
-
-    const definition = wallGroup.userData.presentation;
-    if (!definition) return;
-    const midpoint = [
-      (definition.start[0] + definition.end[0]) / 2,
-      (definition.start[1] + definition.end[1]) / 2,
-    ];
-    const tangentX = definition.end[0] - definition.start[0];
-    const tangentZ = definition.end[1] - definition.start[1];
-    const tangentLength = Math.hypot(tangentX, tangentZ) || 1;
-    const normalAlignment = Math.abs((tangentX / tangentLength) * view[1] - (tangentZ / tangentLength) * view[0]);
-    const fromCenterX = midpoint[0] - architecture.presentation.center.x;
-    const fromCenterZ = midpoint[1] - architecture.presentation.center.y;
-    const nearSideDepth = fromCenterX * view[0] + fromCenterZ * view[1];
-    const exteriorOccluder = definition.thickness >= 0.2
-      && nearSideDepth > nearThreshold
-      && normalAlignment > 0.24;
-    const cameraRayOccluder = focusOccluders
-      && segmentIntersects(cameraPoint, targetPoint, definition.start, definition.end)
-      && Math.hypot(midpoint[0] - targetPoint[0], midpoint[1] - targetPoint[1]) > 0.55;
-
-    wallGroup.visible = !(exteriorOccluder || cameraRayOccluder);
+export function updateArchitecturePresentation(architecture) {
+  architecture?.walls?.forEach((wallGroup) => {
+    wallGroup.visible = true;
   });
 }
