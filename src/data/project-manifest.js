@@ -232,7 +232,7 @@ export const projectManifest = {
   ],
 
   doors: [
-    { id: "door-entry", roomId: "hall", connects: ["hall", "outside"], wallId: "wall-entry-south", offset: 0.85, width: 1.6, height: 2.47, leafWidth: 1, leafWidths: [1, 0.5], leafCount: 2, hinge: "outer", swing: 1, source: SRC.doors, confidence: "provisional", parameterConfidence: { width: "confirmed", height: "confirmed", leaves: "confirmed", offsetXZ: "provisional" } },
+    { id: "door-entry", roomId: "hall", connects: ["hall", "outside"], wallId: "wall-entry-south", offset: 0.85, width: 1.6, height: 2.47, leafWidth: 1, leafWidths: [1, 0.5], leafCount: 2, hinge: "outer", swing: 1, presentationAngle: 0, source: SRC.doors, confidence: "provisional", parameterConfidence: { width: "confirmed", height: "confirmed", leaves: "confirmed", offsetXZ: "provisional" } },
     { id: "door-guest-wc", roomId: "guest-wc", connects: ["corridor", "guest-wc"], wallId: "wall-guest-wc-north", offset: 0.59, width: 0.8, height: 3.37, leafWidth: 0.8, leafCount: 1, hinge: "end", swing: -1, source: SRC.doors, confidence: "provisional", parameterConfidence: { width: "confirmed", height: "confirmed", leaves: "confirmed", offsetXZ: "provisional" } },
     { id: "door-guest-bedroom", roomId: "guest-bedroom", connects: ["corridor", "guest-bedroom"], wallId: "wall-guest-north", offset: 2.86, width: 0.9, height: 3.37, leafWidth: 0.8, leafCount: 1, hinge: "end", swing: 1, source: SRC.doors, confidence: "provisional", parameterConfidence: { width: "confirmed", height: "confirmed", leaves: "confirmed", offsetXZ: "provisional" } },
     { id: "door-guest-bath", roomId: "guest-bath", connects: ["guest-bedroom", "guest-bath"], wallId: "wall-guest-bath", offset: 0.79, width: 0.8, height: 3.37, leafWidth: 0.8, leafCount: 1, hinge: "end", swing: 1, source: SRC.doors, confidence: "provisional", parameterConfidence: { width: "confirmed", height: "confirmed", leaves: "confirmed", offsetXZ: "provisional" } },
@@ -253,25 +253,24 @@ export const projectManifest = {
 
   openPassages: [
     { id: "passage-corridor-living", roomId: "corridor", wallId: "wall-bath-south", offset: 1.94, width: 0.7, height: 3.405, source: SRC.topology, confidence: "provisional" },
-    { id: "passage-hall-living", roomId: "hall", wallId: "wall-entry-east", offset: 0.25, width: 1.4, height: 3.405, source: SRC.topology, confidence: "provisional" },
   ],
 
   furniture: [
-    furniture("master-bed-main", "master-bedroom", "bed", [1.62, 0, 2.45], [2.23, 1.11, 2.18], 0, "textile-warm", "proxy"),
-    furniture("master-chair", "master-bedroom", "chair", [2.95, 0, 0.75], [0.97, 0.77, 1], 0, "textile-olive", "proxy"),
+    furniture("master-bed-main", "master-bedroom", "bed", [1.1, 0, 2.35], [2.23, 1.11, 2.18], Math.PI / 2, "textile-warm", "proxy"),
+    furniture("master-chair", "master-bedroom", "chair", [3.15, 0, 0.75], [0.97, 0.77, 1], 0, "textile-olive", "proxy"),
     furniture("master-tub", "master-bath", "bathtub", [4.86, 0, 0.67], [1.7, 0.56, 0.86], 0, "sanitary-white", "proxy"),
-    furniture("master-vanity", "master-bath", "vanity", [5.45, 0, 2.25], [0.55, 0.85, 1.5], Math.PI / 2, "stone-calacatta", "proxy"),
+    furniture("master-vanity", "master-bath", "vanity", [5.615, 0, 2.25], [0.55, 0.85, 1.5], -Math.PI / 2, "stone-calacatta", "proxy"),
     furniture("master-shower", "master-bath", "shower", [5.45, 0, 3.82], [1.4, 2.1, 0.78], 0, "glass-clear", "proxy"),
-    furniture("wardrobe-system", "wardrobe", "cabinet", [1.345, 0, 6.82], [2.65, 3.19, 0.6], 0, "oak-dark", "proxy"),
+    furniture("wardrobe-system", "wardrobe", "cabinet", [1.345, 0, 6.94], [2.65, 3.19, 0.6], Math.PI, "oak-dark", "proxy"),
     furniture("guest-sofa", "guest-bedroom", "sofa", [1.42, 0, 8.18], [1.8, 0.86, 1], 0, "textile-olive", "proxy"),
-    furniture("guest-bed-main", "guest-bedroom", "bed", [1.6, 0, 10.55], [1.9, 1.05, 2.15], 0, "textile-warm", "proxy"),
-    furniture("guest-cabinet", "guest-bedroom", "cabinet", [3.15, 0, 11.67], [1.2, 3.385, 0.55], 0, "oak-dark", "proxy", { allowedContacts: ["wall-guest-bath", "wall-left-south"] }),
+    furniture("guest-bed-main", "guest-bedroom", "bed", [1.1, 0, 10.4], [1.9, 1.05, 2.15], Math.PI / 2, "textile-warm", "proxy"),
+    furniture("guest-cabinet", "guest-bedroom", "cabinet", [3.15, 0, 11.665], [1.2, 3.385, 0.55], Math.PI, "oak-dark", "proxy", { allowedContacts: ["wall-guest-bath", "wall-left-south"] }),
     furniture("guest-bath-tub", "guest-bath", "bathtub", [5.97, 0, 10.82], [1.7, 0.56, 0.86], Math.PI / 2, "sanitary-white", "proxy"),
     furniture("guest-bath-vanity", "guest-bath", "vanity", [4.52, 0, 9.68], [1.3, 0.85, 0.5], 0, "stone-cristallo", "proxy"),
     furniture("guest-bath-shower", "guest-bath", "shower", [4.42, 0, 11.42], [0.9, 2.1, 0.8], 0, "glass-clear", "proxy"),
-    furniture("guest-wc-vanity", "guest-wc", "vanity", [4.18, 0, 8.6], [0.5, 0.75, 1.2], 0, "stone-calce", "proxy"),
-    furniture("laundry-cabinet", "laundry", "cabinet", [7.42, 0, 1.62], [0.7, 3.23, 3.1], 0, "oak-dark", "proxy", { allowedContacts: ["wall-laundry-west", "wall-right-north"] }),
-    furniture("dining-table", "kitchen-living", "round-table", [10.72, 0, 2.05], [1.4, 0.75, 1.4], 0, "oak-dark", "proxy", {
+    furniture("guest-wc-vanity", "guest-wc", "vanity", [4.18, 0, 8.71], [0.5, 0.75, 1.2], Math.PI, "stone-calce", "proxy"),
+    furniture("laundry-cabinet", "laundry", "cabinet", [7.41, 0, 1.62], [3.1, 3.23, 0.7], Math.PI / 2, "oak-dark", "proxy", { allowedContacts: ["wall-laundry-west", "wall-right-north"] }),
+    furniture("dining-table", "kitchen-living", "round-table", [10.72, 0, 1.72], [1.4, 0.75, 1.4], 0, "oak-dark", "proxy", {
       collider: false,
       collisionParts: [
         { id: "disc-center", offset: [0, 0, 0], size: [1.4, 0.75, 0.28], rotationY: 0 },
@@ -281,13 +280,13 @@ export const projectManifest = {
         { id: "disc-south-edge", offset: [0, 0, 0.56], size: [0.7, 0.75, 0.28], rotationY: 0 },
       ],
     }),
-    furniture("dining-chair-ring", "kitchen-living", "chair-ring", [10.72, 0, 2.05], [2.9, 0.78, 2.9], 0, "textile-warm", "proxy", {
+    furniture("dining-chair-ring", "kitchen-living", "chair-ring", [10.72, 0, 1.72], [2.9, 0.78, 2.9], 0, "textile-warm", "proxy", {
       collider: false,
       count: 8,
       collisionParts: radialCollisionParts(8, 1.089, 1.089, [0.48, 0.78, 0.54]),
     }),
-    furniture("kitchen-island", "kitchen-living", "island", [10.85, 0, 5.18], [2, 0.9, 1.2], 0, "stone-statuario", "proxy"),
-    furniture("island-stools", "kitchen-living", "stool-row", [10.85, 0, 4.32], [2, 0.93, 0.48], 0, "oak-dark", "proxy", {
+    furniture("kitchen-island", "kitchen-living", "island", [10.85, 0, 4.75], [2, 0.9, 1.2], 0, "stone-statuario", "proxy"),
+    furniture("island-stools", "kitchen-living", "stool-row", [10.85, 0, 3.89], [2, 0.93, 0.48], 0, "oak-dark", "proxy", {
       collider: false,
       count: 3,
       collisionParts: [
@@ -296,7 +295,7 @@ export const projectManifest = {
         { id: "stool-03", offset: [0.79, 0, 0], size: [0.42, 0.93, 0.48], rotationY: 0 },
       ],
     }),
-    furniture("kitchen-run", "kitchen-living", "kitchen", [13.97, 0, 6.55], [4.935, 3.1, 0.74], 0, "oak-dark", "proxy"),
+    furniture("kitchen-run", "kitchen-living", "kitchen", [13.97, 0, 6.73], [4.935, 3.1, 0.74], Math.PI, "oak-dark", "proxy"),
     furniture("living-sofa", "kitchen-living", "sectional-sofa", [15.1, 0, 4.25], [4.2, 0.82, 3.14], 0, "textile-ink", "proxy", {
       collider: false,
       collisionParts: [
@@ -484,7 +483,7 @@ export const projectManifest = {
       group: "living-track",
       sourceRef: SRC.generatedLights,
     }),
-    fixtureGroup({ id: "light-dining-pendant", roomId: "kitchen-living", deviceId: "device-light-dining", kind: "pendant", points: [fixturePoint("decorative-01", 10.703, 2.003)], height: 2.28, maxIntensity: 2.0, group: "dining-decorative", sourceRef: SRC.generatedLights }),
+    fixtureGroup({ id: "light-dining-pendant", roomId: "kitchen-living", deviceId: "device-light-dining", kind: "pendant", points: [fixturePoint("decorative-01", 10.72, 1.72)], height: 2.28, maxIntensity: 2.0, group: "dining-decorative", sourceRef: SRC.generatedLights }),
   ],
 
   curtains: [
@@ -538,14 +537,37 @@ export const projectManifest = {
     { id: "textile-olive", kind: "textile", color: "#777467", roughness: 0.96, source: SRC.renders, confidence: "provisional" },
     { id: "textile-ink", kind: "textile", color: "#1d2a45", roughness: 0.95, source: SRC.renders, confidence: "provisional" },
     { id: "sanitary-white", kind: "ceramic", color: "#e9e8e3", roughness: 0.24, source: SRC.renders, confidence: "provisional" },
-    { id: "glass-clear", kind: "glass", color: "#b6b3aa", roughness: 0.08, transmission: 0.96, opacity: 1, ior: 1.5, thickness: 0.012, source: SRC.survey, confidence: "provisional" },
+    { id: "glass-clear", kind: "glass", color: "#f7fbfa", roughness: 0.025, transmission: 0.995, opacity: 1, ior: 1.45, thickness: 0.006, source: SRC.survey, confidence: "provisional" },
     { id: "profile-black", kind: "metal", color: "#151918", roughness: 0.28, metalness: 0.68, source: SRC.elevations, confidence: "provisional" },
     { id: "bronze", kind: "metal", color: "#8a7752", roughness: 0.34, metalness: 0.72, source: SRC.renders, confidence: "provisional" },
   ],
 
   scenarios: [
     { id: "day", name: "День", description: "Шторы открыты, рабочий свет приглушён", icon: "sun", lightLevel: 18, curtainLevel: 100, climate: 22 },
-    { id: "evening", name: "Вечер", description: "Тёплый свет и приватность", icon: "moon", lightLevel: 62, curtainLevel: 24, climate: 23 },
+    {
+      id: "evening",
+      name: "Вечер",
+      description: "Многослойный тёплый свет и приватность",
+      icon: "moon",
+      lightLevel: 24,
+      lightLevels: {
+        "device-light-master": 25,
+        "device-light-master-pendant": 35,
+        "device-light-master-bath": 12,
+        "device-light-wardrobe": 20,
+        "device-light-corridor": 20,
+        "device-light-guest-wc": 12,
+        "device-light-guest": 25,
+        "device-light-guest-bath": 12,
+        "device-light-hall": 20,
+        "device-light-laundry": 12,
+        "device-light-living": 28,
+        "device-light-track": 42,
+        "device-light-dining": 72,
+      },
+      curtainLevel: 24,
+      climate: 23,
+    },
     { id: "away", name: "Нет дома", description: "Свет выключен, климат экономичный", icon: "away", lightLevel: 0, curtainLevel: 0, climate: 18 },
   ],
 

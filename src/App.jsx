@@ -25,6 +25,7 @@ import {
 import { SmartHomeScene } from "./scene/SmartHomeScene.jsx";
 import { activationCommandForDevice } from "./scene/sceneDeviceAction.js";
 import { validateManifest } from "./scene/manifestValidator.js";
+import { devicesForScenario } from "./scene/sceneScenario.js";
 
 const DEMO_ACK_MS = 520;
 const CONFIRMED_MS = 1200;
@@ -64,15 +65,6 @@ function initialQaState() {
   };
 }
 
-function devicesForScenario(scenarioId) {
-  const scenario = projectManifest.scenarios.find((item) => item.id === scenarioId) ?? projectManifest.scenarios[0];
-  return projectManifest.devices.map((item) => {
-    if (item.kind === "light") return { ...item, on: scenario.lightLevel > 0, level: scenario.lightLevel, state: "idle" };
-    if (item.kind === "curtain") return { ...item, on: true, level: scenario.curtainLevel, state: "idle" };
-    if (item.kind === "climate") return { ...item, on: true, level: scenario.climate, state: "idle" };
-    return { ...item };
-  });
-}
 
 function initialEditorState() {
   try {
@@ -130,7 +122,7 @@ export default function App() {
   const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState("overview");
   const [selectedRoomId, setSelectedRoomId] = useState(qa.roomId);
-  const [devices, setDevices] = useState(() => devicesForScenario(qa.scenario));
+  const [devices, setDevices] = useState(() => devicesForScenario(projectManifest, qa.scenario));
   const [scenarioId, setScenarioId] = useState(qa.scenario);
   const [pendingScenarioId, setPendingScenarioId] = useState(null);
   const [viewPreset, setViewPreset] = useState(qa.viewPreset);
@@ -273,11 +265,15 @@ export default function App() {
     setDevices((items) => items.map((item) => ({ ...item, state: item.state === "offline" ? "offline" : "pending" })));
     setAnnouncement(`Сценарий «${scenario.name}» отправлен в демо-контур`);
     defer(() => {
+      const scenarioDevices = new Map(
+        devicesForScenario(projectManifest, nextScenarioId).map((item) => [item.id, item]),
+      );
       setDevices((items) => items.map((item) => {
         if (item.state === "offline") return item;
-        if (item.kind === "light") return { ...item, on: scenario.lightLevel > 0, level: scenario.lightLevel, state: "confirmed" };
-        if (item.kind === "curtain") return { ...item, on: true, level: scenario.curtainLevel, motion: undefined, state: "confirmed" };
-        if (item.kind === "climate") return { ...item, on: true, level: scenario.climate, state: "confirmed" };
+        const next = scenarioDevices.get(item.id);
+        if (item.kind === "light") return { ...item, on: next.on, level: next.level, state: "confirmed" };
+        if (item.kind === "curtain") return { ...item, on: next.on, level: next.level, motion: undefined, state: "confirmed" };
+        if (item.kind === "climate") return { ...item, on: next.on, level: next.level, state: "confirmed" };
         return { ...item, state: "confirmed" };
       }));
       setScenarioId(nextScenarioId);

@@ -94,14 +94,44 @@ function dominantClusterKind(definition, fixtures) {
   })[0]?.[0] ?? fallback;
 }
 
-function roomReach(room) {
-  if (!room?.polygon?.length) return 5;
-  const xs = room.polygon.map(([x]) => x);
-  const zs = room.polygon.map(([, z]) => z);
-  return Math.max(
-    3.5,
-    Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) * 0.75,
-  );
+function distanceToSegment(x, z, [ax, az], [bx, bz]) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const lengthSquared = dx * dx + dz * dz;
+  if (lengthSquared <= Number.EPSILON) return Math.hypot(x - ax, z - az);
+  const t = THREE.MathUtils.clamp(((x - ax) * dx + (z - az) * dz) / lengthSquared, 0, 1);
+  return Math.hypot(x - (ax + dx * t), z - (az + dz * t));
+}
+
+function distanceToRoomBoundary(room, center) {
+  if (!room?.polygon?.length) return 0.5;
+  return Math.min(...room.polygon.map((point, index) => (
+    distanceToSegment(
+      center.x,
+      center.z,
+      point,
+      room.polygon[(index + 1) % room.polygon.length],
+    )
+  )));
+}
+
+function roomLightEnvelope(room, center, kind) {
+  const desiredAngle = {
+    track: Math.PI * 0.12,
+    downlight: Math.PI * 0.2,
+    surface: Math.PI * 0.24,
+    linear: Math.PI * 0.27,
+    pendant: Math.PI * 0.2,
+  }[kind] ?? Math.PI * 0.2;
+  const targetY = 0.05;
+  const verticalReach = Math.max(0.2, center.y - 0.075 - targetY);
+  const safeRadius = Math.max(0.04, distanceToRoomBoundary(room, center) - 0.06);
+  const angle = Math.min(desiredAngle, Math.atan(safeRadius / verticalReach));
+  return {
+    angle,
+    distance: Math.hypot(verticalReach, verticalReach * Math.tan(angle)) + 0.08,
+    targetY,
+  };
 }
 
 function tagDevice(root, deviceId, fixtureId = undefined) {
@@ -118,31 +148,31 @@ function tagDevice(root, deviceId, fixtureId = undefined) {
 
 function addDownlight(parent, emitterMaterial, hardwareMaterial) {
   const housing = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.055, 0.035, 18),
+    new THREE.CylinderGeometry(0.075, 0.075, 0.042, 20),
     hardwareMaterial,
   );
   const emitter = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.039, 0.039, 0.007, 18),
+    new THREE.CylinderGeometry(0.053, 0.053, 0.008, 20),
     emitterMaterial,
   );
-  emitter.position.y = -0.021;
+  emitter.position.y = -0.025;
   parent.add(housing, emitter);
 }
 
 function addTrackSpot(parent, emitterMaterial, hardwareMaterial) {
   const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.012, 0.075, 10),
+    new THREE.CylinderGeometry(0.015, 0.015, 0.085, 12),
     hardwareMaterial,
   );
-  stem.position.y = -0.032;
+  stem.position.y = -0.037;
   const housing = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.043, 0.055, 0.1, 16),
+    new THREE.CylinderGeometry(0.058, 0.072, 0.13, 18),
     hardwareMaterial,
   );
-  housing.position.y = -0.108;
-  const emitter = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), emitterMaterial);
+  housing.position.y = -0.142;
+  const emitter = new THREE.Mesh(new THREE.CircleGeometry(0.049, 18), emitterMaterial);
   emitter.rotation.x = Math.PI / 2;
-  emitter.position.y = -0.161;
+  emitter.position.y = -0.208;
   parent.add(stem, housing, emitter);
 }
 
@@ -195,7 +225,7 @@ function addLinear(parent, fixture, emitterMaterial, hardwareMaterial) {
 }
 
 function createOverviewMarker(kind, emitterMaterial) {
-  const radius = kind === "surface" ? 0.042 : 0.025;
+  const radius = kind === "surface" ? 0.05 : 0.038;
   const marker = new THREE.Mesh(
     new THREE.CylinderGeometry(radius, radius, 0.006, 14),
     emitterMaterial,
@@ -336,27 +366,13 @@ function createHitTarget(definition, fixture) {
 }
 
 function createActualLight(definition, room, center, kind, sourceIndex, castShadow) {
-  const reach = roomReach(room);
-  if (kind === "pendant") {
-    const light = new THREE.PointLight(LIGHT_COLOR, 0, reach * 0.72, 1.85);
-    light.position.set(center.x, center.y - 0.1, center.z);
-    light.name = `source-${definition.id}-${sourceIndex + 1}`;
-    light.castShadow = false;
-    return { light, target: null };
-  }
-
-  const angleByKind = {
-    track: Math.PI * 0.12,
-    downlight: Math.PI * 0.2,
-    surface: Math.PI * 0.24,
-    linear: Math.PI * 0.27,
-  };
+  const envelope = roomLightEnvelope(room, center, kind);
   const light = new THREE.SpotLight(
     LIGHT_COLOR,
     0,
-    reach,
-    angleByKind[kind] ?? Math.PI * 0.2,
-    kind === "track" ? 0.48 : 0.68,
+    envelope.distance,
+    envelope.angle,
+    kind === "track" ? 0.48 : kind === "pendant" ? 0.78 : 0.68,
     1.8,
   );
   light.position.set(center.x, center.y - 0.075, center.z);
@@ -365,20 +381,21 @@ function createActualLight(definition, room, center, kind, sourceIndex, castShad
   if (castShadow) {
     light.shadow.mapSize.set(512, 512);
     light.shadow.camera.near = 0.2;
-    light.shadow.camera.far = reach;
+    light.shadow.camera.far = envelope.distance;
     light.shadow.bias = -0.00025;
     light.shadow.normalBias = 0.018;
   }
   const target = new THREE.Object3D();
-  target.position.set(center.x, 0.05, center.z);
+  target.position.set(center.x, envelope.targetY, center.z);
   target.name = `target-${definition.id}-${sourceIndex + 1}`;
   light.target = target;
   return { light, target };
 }
 
-function createZoneGlow(definition, fixture, sourceIndex, glowTexture) {
+function createZoneGlow(definition, fixture, sourceIndex, glowTexture, room) {
   const kind = fixtureKind(definition, fixture);
   const center = new THREE.Vector3(...fixture.position);
+  const safeRadius = Math.max(0.015, distanceToRoomBoundary(room, center) - 0.03);
   const material = new THREE.MeshBasicMaterial({
     map: glowTexture,
     color: LIGHT_COLOR,
@@ -390,8 +407,11 @@ function createZoneGlow(definition, fixture, sourceIndex, glowTexture) {
   });
   const radiusByKind = { track: 0.8, downlight: 0.72, surface: 0.88, pendant: 1.0 };
   const geometry = kind === "linear"
-    ? new THREE.PlaneGeometry(THREE.MathUtils.clamp((fixture.length ?? 0.8) * 1.08, 0.3, 5.5), 0.54)
-    : new THREE.CircleGeometry(radiusByKind[kind] ?? 0.58, 32);
+    ? new THREE.PlaneGeometry(
+      THREE.MathUtils.clamp(fixture.length ?? 0.8, 0.22, 5.5),
+      Math.min(0.54, safeRadius * 2),
+    )
+    : new THREE.CircleGeometry(Math.min(radiusByKind[kind] ?? 0.58, safeRadius), 32);
   const zone = new THREE.Mesh(geometry, material);
   zone.rotation.order = "YXZ";
   zone.rotation.y = fixture.rotationY ?? 0;
@@ -482,7 +502,7 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
   });
 
   definition.fixtures.forEach((fixture, index) => {
-    const zone = createZoneGlow(definition, fixture, index, glowTexture);
+    const zone = createZoneGlow(definition, fixture, index, glowTexture, room);
     zones.push(zone);
     group.add(zone);
   });
