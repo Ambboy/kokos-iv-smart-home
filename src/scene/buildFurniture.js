@@ -586,11 +586,12 @@ function addIsland(group, [width, height, depth], palette) {
   const sinkWidth = Math.min(0.68, width * 0.34);
   const sinkDepth = Math.min(0.42, depth * 0.38);
   const sinkX = -width * 0.18;
+  const sinkClearance = 0.003;
   namePart(
     addBox(
       group,
       [sinkWidth, MIN_PART, sinkDepth],
-      [sinkX, counterY - MIN_PART / 2, 0],
+      [sinkX, counterY + sinkClearance + MIN_PART / 2, 0],
       palette.dark,
       0.035,
     ),

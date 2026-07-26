@@ -80,18 +80,25 @@ test("display walls are one third of their architectural height", () => {
   assert.ok(Math.abs(bounds.max.y - wall.height / 3) < 0.001);
 });
 
-test("kitchen countertop inserts avoid coplanar faces", () => {
+test("kitchen and island countertop inserts avoid coplanar faces", () => {
   const materials = createMaterialRegistry(projectManifest);
   const furniture = buildFurniture({ manifest: projectManifest, materials });
   const kitchen = furniture.items.get("kitchen-run")?.group;
   const countertop = kitchen?.getObjectByName("kitchen-countertop");
   const cooktop = kitchen?.getObjectByName("kitchen-cooktop");
   const sink = kitchen?.getObjectByName("kitchen-sink-recess");
-  assert.ok(countertop && cooktop && sink);
+  const island = furniture.items.get("kitchen-island")?.group;
+  const islandCountertop = island?.getObjectByName("island-overhang-countertop");
+  const islandSink = island?.getObjectByName("island-sink-recess");
+  assert.ok(countertop && cooktop && sink && islandCountertop && islandSink);
   kitchen.updateMatrixWorld(true);
+  island.updateMatrixWorld(true);
   const countertopBox = new THREE.Box3().setFromObject(countertop, true);
   const cooktopBox = new THREE.Box3().setFromObject(cooktop, true);
   const sinkBox = new THREE.Box3().setFromObject(sink, true);
+  const islandCountertopBox = new THREE.Box3().setFromObject(islandCountertop, true);
+  const islandSinkBox = new THREE.Box3().setFromObject(islandSink, true);
   assert.ok(cooktopBox.min.y >= countertopBox.max.y + 0.002);
   assert.ok(sinkBox.min.y >= countertopBox.max.y + 0.002);
+  assert.ok(islandSinkBox.min.y >= islandCountertopBox.max.y + 0.002);
 });
