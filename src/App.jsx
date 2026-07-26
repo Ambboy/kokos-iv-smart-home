@@ -10,7 +10,7 @@ import {
   ScenarioBar,
   TopBar,
 } from "./components/index.js";
-import projectManifest from "./data/project-manifest.js";
+import projectManifest from "./data/project-manifest-v2.js";
 import { SmartHomeScene } from "./scene/SmartHomeScene.jsx";
 import { validateManifest } from "./scene/manifestValidator.js";
 
@@ -322,21 +322,19 @@ export default function App() {
             <SlidersHorizontal aria-hidden="true" size={19} />
             <span className="ui-visually-hidden">Сценарии и камера</span>
           </button>
-          {mode === "devices" ? (
-            <DevicePanel
-              room={selectedRoom}
-              devices={roomDevices}
-              onCommand={commandDevice}
-              collapsed={devicePanelCollapsed}
-              onCollapsedChange={setDevicePanelCollapsed}
-              demoMode
-              announcement={announcement}
-              onClose={() => {
-                setMode("rooms");
-                setDevicePanelCollapsed(false);
-              }}
-            />
-          ) : null}
+          <DevicePanel
+            room={selectedRoom}
+            devices={roomDevices}
+            onCommand={commandDevice}
+            collapsed={devicePanelCollapsed}
+            onCollapsedChange={setDevicePanelCollapsed}
+            demoMode
+            announcement={announcement}
+            onClose={() => {
+              setMode("rooms");
+              setDevicePanelCollapsed(true);
+            }}
+          />
           <div
             id="secondary-scene-controls"
             className="ui-secondary-controls"

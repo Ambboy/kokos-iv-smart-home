@@ -13,6 +13,7 @@ import { buildDoors } from "./buildDoors.js";
 import { buildFurniture } from "./buildFurniture.js";
 import { buildGlazing } from "./buildGlazing.js";
 import { buildLights, updateLights } from "./buildLights.js";
+import { computePresentationZoom } from "./presentationLayout.js";
 import { createMaterialRegistry, disposeObject, pointAlongWall, wallFrame, wallInteriorNormal } from "./sceneUtils.js";
 
 function presentationContract(manifest) {
@@ -109,8 +110,7 @@ function applyPresentationSafeFrame(runtime, host, width, height) {
   const safeHeight = Math.max(height * 0.1, height - frame.top - frame.bottom);
   const safeCenterX = frame.left + safeWidth / 2;
   const safeCenterY = frame.top + safeHeight / 2;
-  const safeScale = Math.min(safeWidth / width, safeHeight / height);
-  camera.zoom = THREE.MathUtils.clamp(safeScale, 0.48, 0.94);
+  camera.zoom = computePresentationZoom({ width, height, safeWidth, safeHeight });
   camera.setViewOffset(
     width,
     height,

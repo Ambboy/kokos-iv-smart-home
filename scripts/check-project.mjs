@@ -19,6 +19,7 @@ const requiredFiles = [
   "src/App.jsx",
   "src/main.jsx",
   "src/data/project-manifest.js",
+  "src/data/project-manifest-v2.js",
   "src/scene/buildArchitecture.js",
   "src/scene/buildGlazing.js",
   "src/scene/buildDoors.js",
@@ -28,11 +29,14 @@ const requiredFiles = [
   "src/scene/buildCurtains.js",
   "src/scene/collisionValidator.js",
   "src/scene/manifestValidator.js",
+  "src/scene/presentationLayout.js",
   "src/scene/SmartHomeScene.jsx",
   "public/reference/final-plan-cropped-physical-24.png",
   "public/reference/light-plan-cropped-physical-31.png",
   "scripts/validate-manifest.mjs",
   "scripts/check-project.mjs",
+  "tests/presentation-layout.test.mjs",
+  "tests/rebuild-manifest.test.mjs",
   "tests/validator.test.mjs",
 ];
 
@@ -93,7 +97,11 @@ for (const path of walk(projectRoot).filter((file) => [".js", ".mjs"].includes(e
   if (syntax.status !== 0) failures.push(`Syntax check failed for ${relativePath}: ${(syntax.stderr || syntax.stdout).trim()}`);
 }
 
-runNode("Validator tests", ["--test", "tests/validator.test.mjs"]);
+const testFiles = readdirSync(join(projectRoot, "tests"))
+  .filter((name) => name.endsWith(".test.mjs"))
+  .sort()
+  .map((name) => `tests/${name}`);
+runNode("Project tests", ["--test", ...testFiles]);
 runNode("Manifest validation", ["scripts/validate-manifest.mjs"]);
 runNode("Production JSX/bundle check", ["node_modules/vite/bin/vite.js", "build"]);
 
@@ -102,5 +110,5 @@ if (failures.length > 0) {
   failures.forEach((message) => console.error(`  - ${message}`));
   process.exitCode = 1;
 } else {
-  console.log("Project check PASS: static checks, production JSX/bundle check, validator tests, and manifest validation succeeded.");
+  console.log("Project check PASS: static checks, production JSX/bundle check, project tests, and manifest validation succeeded.");
 }
