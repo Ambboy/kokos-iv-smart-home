@@ -10,8 +10,9 @@ import {
   ScenarioBar,
   TopBar,
 } from "./components/index.js";
-import projectManifest from "./data/project-manifest.js";
+import projectManifest from "./data/project-manifest-v2.js";
 import { SmartHomeScene } from "./scene/SmartHomeScene.jsx";
+import { activationCommandForDevice } from "./scene/sceneDeviceAction.js";
 import { validateManifest } from "./scene/manifestValidator.js";
 
 const DEMO_ACK_MS = 520;
@@ -210,6 +211,13 @@ export default function App() {
     deviceTimersRef.current.set(deviceId, acknowledgementTimer);
   }, [defer, devices]);
 
+  const activateSceneDevice = useCallback((deviceId) => {
+    const device = devices.find((item) => item.id === deviceId);
+    const command = activationCommandForDevice(device);
+    if (!command) return;
+    commandDevice(command);
+  }, [commandDevice, devices]);
+
   const applyScenario = useCallback((nextScenarioId) => {
     if (pendingScenarioId) return;
     const scenario = projectManifest.scenarios.find((item) => item.id === nextScenarioId);
@@ -289,6 +297,7 @@ export default function App() {
           selectedRoomId={selectedRoomId}
           onSelectRoom={selectRoom}
           onSelectDevice={selectDevice}
+          onActivateDevice={activateSceneDevice}
           scenarioId={scenarioId}
           viewPreset={viewPreset}
           debugState={debugState}
@@ -322,21 +331,19 @@ export default function App() {
             <SlidersHorizontal aria-hidden="true" size={19} />
             <span className="ui-visually-hidden">Сценарии и камера</span>
           </button>
-          {mode === "devices" ? (
-            <DevicePanel
-              room={selectedRoom}
-              devices={roomDevices}
-              onCommand={commandDevice}
-              collapsed={devicePanelCollapsed}
-              onCollapsedChange={setDevicePanelCollapsed}
-              demoMode
-              announcement={announcement}
-              onClose={() => {
-                setMode("rooms");
-                setDevicePanelCollapsed(false);
-              }}
-            />
-          ) : null}
+          <DevicePanel
+            room={selectedRoom}
+            devices={roomDevices}
+            onCommand={commandDevice}
+            collapsed={devicePanelCollapsed}
+            onCollapsedChange={setDevicePanelCollapsed}
+            demoMode
+            announcement={announcement}
+            onClose={() => {
+              setMode("rooms");
+              setDevicePanelCollapsed(true);
+            }}
+          />
           <div
             id="secondary-scene-controls"
             className="ui-secondary-controls"

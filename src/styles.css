@@ -1442,6 +1442,10 @@ button.ui-connection-status:hover {
     background: rgba(21, 19, 16, 0.96);
   }
 
+  .smart-home-app:not([data-mode="devices"]) .ui-device-panel {
+    display: none;
+  }
+
   .ui-scenario-bar {
     top: calc(var(--ui-topbar-height) + 64px);
     bottom: auto;

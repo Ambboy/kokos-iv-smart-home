@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "project": "КОКОС IV — rebuild",
+  "baselineDate": "2026-07-26",
+  "authority": {
+    "architecture": "полный PDF: физические страницы 22, 24 и 25 / листы 2, 4 и 5",
+    "furnitureAndDeviceBindings": "DWG-листы 6 и 12-14",
+    "appearance": "фотореалистичные визуализации полного PDF",
+    "legacyModel": "только справочный материал; геометрия требует повторной регистрации"
+  },
+  "pdf": {
+    "authoritative": {
+      "logicalName": "Дизайн-проект интерьера.pdf",
+      "pages": 60,
+      "bytes": 110351792,
+      "sha256": "9d4b2c49e4e52448a5e2ed20a872880a355eb847d2c66c6e87a1e00e11666c3e",
+      "roles": {
+        "renders": "physical pages 3-21",
+        "survey": "physical page 22 / sheet 2",
+        "topology": "physical page 24 / sheet 4",
+        "doors": "physical page 25 / sheet 5",
+        "furniture": "physical page 26 / sheet 6",
+        "plumbing": "physical page 27 / sheet 7",
+        "flooring": "physical page 28 / sheet 8",
+        "heating": "physical page 29 / sheet 9",
+        "ceilings": "physical page 30 / sheet 10",
+        "lights": "physical page 31 / sheet 11",
+        "switches": "physical page 32 / sheet 12",
+        "sockets": "physical page 33 / sheet 13",
+        "electricalOutlets": "physical page 34 / sheet 14",
+        "finishes": "physical page 35 / sheet 15",
+        "elevations": "physical pages 36-49 / sheets 16-28",
+        "schedules": "physical pages 50-60 / sheets 29-39"
+      }
+    },
+    "derivative": {
+      "logicalName": "Дизайн-проект интерьера — урезан.pdf",
+      "pages": 26,
+      "bytes": 23409191,
+      "sha256": "f2e1173d6eb1fe24f92321b17e1fe33b52b35c2f3d596a08e39c8c06c99d4c17",
+      "mappingToAuthoritativePhysicalPages": [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, 28, 30, 31, 33, 35],
+      "note": "Производная выборка: обложка, визуализации и шесть рабочих листов. Не является самостоятельным источником и не заменяет полный PDF."
+    }
+  },
+  "dwg": [
+    {
+      "logicalName": "Планы КОКОС IV — 2026-07-24.dwg",
+      "sourceSheet": 6,
+      "title": "ПЛАН С РАЗМЕЩЕНИЕМ МЕБЕЛИ И ОБОРУДОВАНИЯ",
+      "bytes": 200247,
+      "sha256": "0c4a6e2c1c8acb6a1a92378f82fe2fdf1f5dff03f38e28c5f3f1e03b991f7bd2",
+      "dwgVersion": "AC1018",
+      "objects": 3848,
+      "layers": 40,
+      "layouts": 3,
+      "role": "мебель и оборудование; архитектурная подложка используется только для регистрации относительно PDF, но не подтверждает отдельные листы 2, 4 и 5"
+    },
+    {
+      "logicalName": "Планы КОКОС IV — 12 — 2026-07-24.dwg",
+      "sourceSheet": 12,
+      "title": "ПЛАН С РАЗМЕЩЕНИЕМ ВЫКЛЮЧАТЕЛЕЙ",
+      "bytes": 111766,
+      "sha256": "6751e2f08a2a077f464a87028b09df9ac21463f6834fab28e84175ac99e4b4e1",
+      "dwgVersion": "AC1018",
+      "objects": 2911,
+      "layers": 39,
+      "layouts": 3,
+      "role": "привязки выключателей и групп управления"
+    },
+    {
+      "logicalName": "Планы КОКОС IV — 13 — 2026-07-24.dwg",
+      "sourceSheet": 13,
+      "title": "ПЛАН С РАЗМЕЩЕНИЕМ РОЗЕТОК",
+      "bytes": 83685,
+      "sha256": "64d0f048606e41654000bf1b091f7bb2850c5a7f69a1d7a14503fedd1ac351cf",
+      "dwgVersion": "AC1018",
+      "objects": 2110,
+      "layers": 33,
+      "layouts": 3,
+      "role": "привязки силовых и слаботочных розеток"
+    },
+    {
+      "logicalName": "Планы КОКОС IV — 14 — 2026-07-24.dwg",
+      "sourceSheet": 14,
+      "title": "ПЛАН ЭЛЕКТРОВЫВОДОВ",
+      "bytes": 113270,
+      "sha256": "cf7c93054b193e121830559be67f4f125bf6c3c4b9c61bf7a09dddb702b7892b",
+      "dwgVersion": "AC1018",
+      "objects": 2867,
+      "layers": 34,
+      "layouts": 3,
+      "role": "электровыводы, выноски и координатные привязки оборудования"
+    }
+  ],
+  "limitations": [
+    "В комплекте DWG отсутствуют архитектурные листы 2, 4 и 5; shell, помещения, стены и дверные проёмы остаются реконструкцией по PDF.",
+    "Точные координаты светильников остаются provisional: DWG-листа 11 в комплекте нет.",
+    "LibreDWG структурно читает все четыре DWG, но диагностический SVG пропускает MTEXT и HATCH.",
+    "Сгенерированный LibreDWG DXF содержит некорректно разорванные MTEXT-строки и не используется как авторитетная производная.",
+    "До повторной регистрации координат старые X/Z-позиции в project-manifest.js считаются provisional."
+  ]
+}

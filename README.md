@@ -33,6 +33,10 @@ npm run check
 
 Источники, допущения и статусы достоверности описаны в [ARCHITECTURE.md](ARCHITECTURE.md), результаты проверок — в [QA.md](QA.md).
 
+## Новый rebuild по DWG
+
+Чистая пересборка геометрии по полному PDF и четырём DWG ведётся в ветке `rebuild/design-project-sources`. База исходников, их роли и ограничения диагностических конверсий зафиксированы в [docs/REBUILD_BASELINE.md](docs/REBUILD_BASELINE.md), контрольные суммы — в [sources/source-manifest.json](sources/source-manifest.json).
+
 ## Публикация
 
 Push в ветку `main` запускает проверку и публикацию production-сборки на GitHub Pages через `.github/workflows/deploy-pages.yml`.
