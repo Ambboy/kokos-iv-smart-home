@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { createTextSprite, pointAlongWall, polygonShape, roundedBox, wallFrame } from "./sceneUtils.js";
 
+export const DISPLAY_WALL_HEIGHT_SCALE = 1 / 3;
+
 function collectWallOpenings(manifest, wallId) {
   return [
     ...manifest.doors.map((item) => ({ ...item, kind: "door", bottom: 0 })),
@@ -23,7 +25,7 @@ function wallPiece(wall, startDistance, endDistance, bottom, height, material) {
   return mesh;
 }
 
-function buildWall(wall, manifest, material) {
+export function buildWall(wall, manifest, material, heightScale = DISPLAY_WALL_HEIGHT_SCALE) {
   const group = new THREE.Group();
   group.name = wall.id;
   group.userData = {
@@ -36,28 +38,29 @@ function buildWall(wall, manifest, material) {
     },
   };
   const { length } = wallFrame(wall);
+  const displayHeight = wall.height * heightScale;
   const openings = collectWallOpenings(manifest, wall.id);
   let cursor = 0;
 
   openings.forEach((opening) => {
     const start = Math.max(0, opening.offset);
     const end = Math.min(length, opening.offset + opening.width);
-    const solid = wallPiece(wall, cursor, start, 0, wall.height, material);
+    const solid = wallPiece(wall, cursor, start, 0, displayHeight, material);
     if (solid) group.add(solid);
 
     if (opening.bottom > 0) {
-      const sill = wallPiece(wall, start, end, 0, opening.bottom, material);
+      const sill = wallPiece(wall, start, end, 0, Math.min(opening.bottom, displayHeight), material);
       if (sill) group.add(sill);
     }
     const openingTop = opening.bottom + opening.height;
-    if (openingTop < wall.height) {
-      const header = wallPiece(wall, start, end, openingTop, wall.height - openingTop, material);
+    if (openingTop < displayHeight) {
+      const header = wallPiece(wall, start, end, openingTop, displayHeight - openingTop, material);
       if (header) group.add(header);
     }
     cursor = Math.max(cursor, end);
   });
 
-  const tail = wallPiece(wall, cursor, length, 0, wall.height, material);
+  const tail = wallPiece(wall, cursor, length, 0, displayHeight, material);
   if (tail) group.add(tail);
   return group;
 }

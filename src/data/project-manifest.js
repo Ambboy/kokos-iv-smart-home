@@ -307,7 +307,6 @@ export const projectManifest = {
     furniture("living-coffee-table", "kitchen-living", "coffee-table", [14.35, 0, 3.9], [1.88, 0.37, 1.2], 0.12, "stone-statuario", "proxy"),
     furniture("living-lounge-chair", "kitchen-living", "chair", [16.0, 0, 1.15], [0.78, 0.93, 0.84], -0.65, "textile-olive", "proxy"),
     furniture("living-fireplace", "kitchen-living", "fireplace", [14.6, 0, 0.66], [1.45, 1.25, 0.65], 0, "stone-statuario", "proxy"),
-    furniture("hall-cabinet-main", "hall", "cabinet", [7.55, 0, 7.52], [2.675, 3.3, 0.6], 0, "oak-dark", "proxy"),
     furniture("hall-bench", "hall", "bench", [7.55, 0, 9.2], [1.1, 0.48, 0.45], 0, "textile-olive", "proxy"),
   ],
 
@@ -552,7 +551,7 @@ export const projectManifest = {
 
   allowedContacts: [
     { id: "contact-floor-furniture", kinds: ["furniture", "floor"], reason: "Мебель опирается на чистый пол" },
-    { id: "contact-wall-builtins", objectIds: ["wardrobe-system", "guest-cabinet", "laundry-cabinet", "kitchen-run", "hall-cabinet-main"], reason: "Встроенная мебель примыкает к указанной стене" },
+    { id: "contact-wall-builtins", objectIds: ["wardrobe-system", "guest-cabinet", "laundry-cabinet", "kitchen-run"], reason: "Встроенная мебель примыкает к указанной стене" },
     { id: "contact-ceiling-light", kinds: ["fixture", "ceiling"], reason: "Светильник закреплён на потолке" },
     { id: "contact-glazing-frame", kinds: ["glass", "frame"], reason: "Стеклопакет удерживается рамой внутри проёма" },
   ],
