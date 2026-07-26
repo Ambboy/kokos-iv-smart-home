@@ -711,11 +711,12 @@ function addKitchen(group, [width, height, depth], palette) {
   const applianceX = centerWidth * 0.24;
   const sinkWidth = Math.min(0.64, centerWidth * 0.28);
   const sinkDepth = Math.min(0.38, depth * 0.58);
+  const countertopInsertClearance = 0.003;
   namePart(
     addBox(
       group,
       [sinkWidth, MIN_PART, sinkDepth],
-      [sinkX, counterHeight - MIN_PART / 2, 0],
+      [sinkX, counterHeight + countertopInsertClearance + MIN_PART / 2, 0],
       palette.dark,
       0.03,
     ),
@@ -725,7 +726,7 @@ function addKitchen(group, [width, height, depth], palette) {
     addBox(
       group,
       [Math.min(0.68, centerWidth * 0.3), MIN_PART, depth * 0.5],
-      [applianceX, counterHeight - MIN_PART / 2, 0],
+      [applianceX, counterHeight + countertopInsertClearance + MIN_PART / 2, 0],
       palette.trim,
       0.012,
     ),

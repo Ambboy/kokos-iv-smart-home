@@ -4,6 +4,7 @@ import {
   CameraToolbar,
   DebugPanel,
   DevicePanel,
+  EditorPanel,
   FlightHud,
   ModeSwitch,
   RoomRail,
@@ -11,6 +12,16 @@ import {
   TopBar,
 } from "./components/index.js";
 import projectManifest from "./data/project-manifest-v2.js";
+import {
+  applySceneEdits,
+  appendWallEdit,
+  EDITOR_STORAGE_KEY,
+  hideFurnitureEdit,
+  isValidWallEdit,
+  normalizeEditorState,
+  persistEditorState,
+  removeLastWallEdit,
+} from "./editor/editModel.js";
 import { SmartHomeScene } from "./scene/SmartHomeScene.jsx";
 import { activationCommandForDevice } from "./scene/sceneDeviceAction.js";
 import { validateManifest } from "./scene/manifestValidator.js";
@@ -63,6 +74,14 @@ function devicesForScenario(scenarioId) {
   });
 }
 
+function initialEditorState() {
+  try {
+    return normalizeEditorState(JSON.parse(window.localStorage.getItem(EDITOR_STORAGE_KEY) ?? "null"));
+  } catch {
+    return normalizeEditorState(null);
+  }
+}
+
 function toUiDevice(device) {
   let control;
   if (device.kind === "light") {
@@ -104,7 +123,10 @@ function toUiDevice(device) {
 
 export default function App() {
   const qa = useMemo(initialQaState, []);
-  const manifestValidation = useMemo(() => validateManifest(projectManifest), []);
+  const [editorState, setEditorState] = useState(initialEditorState);
+  const [editMode, setEditMode] = useState(false);
+  const editedManifest = useMemo(() => applySceneEdits(projectManifest, editorState), [editorState]);
+  const manifestValidation = useMemo(() => validateManifest(editedManifest), [editedManifest]);
   const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState("overview");
   const [selectedRoomId, setSelectedRoomId] = useState(qa.roomId);
@@ -129,6 +151,11 @@ export default function App() {
   });
   const timersRef = useRef(new Set());
   const deviceTimersRef = useRef(new Map());
+  const wallSequenceRef = useRef(0);
+
+  useEffect(() => {
+    persistEditorState(() => window.localStorage, editorState);
+  }, [editorState]);
 
   useEffect(() => () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -144,8 +171,8 @@ export default function App() {
   }, []);
 
   const selectedRoom = useMemo(
-    () => projectManifest.rooms.find((room) => room.id === selectedRoomId) ?? null,
-    [selectedRoomId],
+    () => editedManifest.rooms.find((room) => room.id === selectedRoomId) ?? null,
+    [editedManifest, selectedRoomId],
   );
   const roomDevices = useMemo(
     () => devices.filter((device) => device.roomId === selectedRoomId).map(toUiDevice),
@@ -218,6 +245,26 @@ export default function App() {
     commandDevice(command);
   }, [commandDevice, devices]);
 
+  const addEditorWall = useCallback((start, end) => {
+    wallSequenceRef.current += 1;
+    const wall = {
+      id: `edit-wall-${Date.now().toString(36)}-${wallSequenceRef.current}`,
+      start,
+      end,
+    };
+    if (!isValidWallEdit(wall)) {
+      setAnnouncement("Стена слишком короткая — укажите точки дальше друг от друга");
+      return;
+    }
+    setEditorState((current) => appendWallEdit(current, wall));
+    setAnnouncement("Стена добавлена в модель");
+  }, []);
+
+  const removeEditorFurniture = useCallback((furnitureId) => {
+    setEditorState((current) => hideFurnitureEdit(current, furnitureId));
+    setAnnouncement("Предмет мебели убран из модели");
+  }, []);
+
   const applyScenario = useCallback((nextScenarioId) => {
     if (pendingScenarioId) return;
     const scenario = projectManifest.scenarios.find((item) => item.id === nextScenarioId);
@@ -251,12 +298,12 @@ export default function App() {
     setFlightAction({ id: performance.now(), direction: normalized, active });
   }, []);
 
-  const roomsForUi = useMemo(() => projectManifest.rooms.map((room) => ({
+  const roomsForUi = useMemo(() => editedManifest.rooms.map((room) => ({
     id: room.id,
     name: room.name,
     area: room.reportedArea,
     confidence: room.confidence,
-  })), []);
+  })), [editedManifest]);
 
   const changeMode = useCallback((next) => {
     setMode(next);
@@ -266,7 +313,7 @@ export default function App() {
     if (next === "devices") setDevicePanelCollapsed(false);
   }, []);
 
-  const presentationLayoutKey = `${mode}:${mobileControlsOpen}:${devicePanelCollapsed}`;
+  const presentationLayoutKey = `${mode}:${mobileControlsOpen}:${devicePanelCollapsed}:${editMode}`;
 
   const debugOptions = [
     { id: "bounds", label: "Границы объектов", enabled: debugState.bounds, description: "Bounding volumes мебели и стен" },
@@ -280,6 +327,7 @@ export default function App() {
       className="smart-home-app"
       data-mode={mode}
       data-flight-active={flightMode}
+      data-edit-mode={editMode}
       data-ui-visible={qa.showUi}
       data-qa-view={viewPreset}
       data-qa-room={selectedRoomId}
@@ -291,13 +339,16 @@ export default function App() {
     >
       <div className="smart-home-stage">
         <SmartHomeScene
-          manifest={projectManifest}
+          manifest={editedManifest}
           devices={devices}
           mode={mode}
           selectedRoomId={selectedRoomId}
           onSelectRoom={selectRoom}
           onSelectDevice={selectDevice}
           onActivateDevice={activateSceneDevice}
+          editMode={editMode}
+          onAddWall={addEditorWall}
+          onRemoveFurniture={removeEditorFurniture}
           scenarioId={scenarioId}
           viewPreset={viewPreset}
           debugState={debugState}
@@ -318,6 +369,22 @@ export default function App() {
       {qa.showUi ? (
         <>
           <TopBar projectName={projectManifest.meta.title} subtitle={projectManifest.meta.subtitle} connectionStatus="demo" demoMode />
+          <EditorPanel
+            active={editMode}
+            wallCount={editorState.walls.length}
+            hiddenFurnitureCount={editorState.hiddenFurnitureIds.length}
+            onToggle={(active) => {
+              setEditMode(active);
+              setFlightMode(false);
+              if (active) {
+                setMode("overview");
+                setViewPreset("dollhouse");
+                setAnnouncement("Редактор включён. Укажите две точки новой стены");
+              }
+            }}
+            onUndoWall={() => setEditorState((current) => removeLastWallEdit(current))}
+            onReset={() => setEditorState(normalizeEditorState(null))}
+          />
           <RoomRail rooms={roomsForUi} selectedRoomId={selectedRoomId} onSelectRoom={selectRoom} />
           <ModeSwitch value={mode} onChange={changeMode} />
           <button

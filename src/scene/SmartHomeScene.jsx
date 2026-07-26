@@ -161,6 +161,9 @@ export function SmartHomeScene({
   onSelectRoom,
   onSelectDevice,
   onActivateDevice,
+  editMode,
+  onAddWall,
+  onRemoveFurniture,
   scenarioId,
   viewPreset,
   debugState,
@@ -176,9 +179,17 @@ export function SmartHomeScene({
 }) {
   const hostRef = useRef(null);
   const runtimeRef = useRef(null);
+  const editorViewRef = useRef(null);
   const devicesRef = useRef(devices);
   const deviceMapRef = useRef(new Map(devices.map((device) => [device.id, device])));
-  const callbacksRef = useRef({ onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange });
+  const callbacksRef = useRef({
+    onSelectRoom,
+    onSelectDevice,
+    onActivateDevice,
+    onAddWall,
+    onRemoveFurniture,
+    onFlightModeChange,
+  });
 
   useEffect(() => {
     devicesRef.current = devices;
@@ -186,8 +197,15 @@ export function SmartHomeScene({
   }, [devices]);
 
   useEffect(() => {
-    callbacksRef.current = { onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange };
-  }, [onSelectRoom, onSelectDevice, onActivateDevice, onFlightModeChange]);
+    callbacksRef.current = {
+      onSelectRoom,
+      onSelectDevice,
+      onActivateDevice,
+      onAddWall,
+      onRemoveFurniture,
+      onFlightModeChange,
+    };
+  }, [onSelectRoom, onSelectDevice, onActivateDevice, onAddWall, onRemoveFurniture, onFlightModeChange]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -229,6 +247,13 @@ export function SmartHomeScene({
     controls.zoomToCursor = false;
     controls.screenSpacePanning = false;
     controls.update();
+    const savedEditorView = editMode ? editorViewRef.current : null;
+    if (savedEditorView) {
+      camera.position.fromArray(savedEditorView.position);
+      camera.up.fromArray(savedEditorView.up);
+      controls.target.fromArray(savedEditorView.target);
+      controls.update();
+    }
 
     const hemisphere = new THREE.HemisphereLight(0xd9ddcf, 0x4a3d31, 0.82);
     scene.add(hemisphere);
@@ -262,7 +287,18 @@ export function SmartHomeScene({
     const lights = buildLights({ manifest, materials, devices: devicesRef.current });
     const curtains = buildCurtains({ manifest, materials, devices: devicesRef.current });
     const debug = buildDebugLayer({ manifest, architecture, furniture, doors, collisionReport });
-    scene.add(architecture.root, glazing.root, doors.root, furniture.root, lights.root, curtains.root, debug.root);
+    const editor = new THREE.Group();
+    editor.name = "scene-editor";
+    const editorMarker = new THREE.Mesh(
+      new THREE.RingGeometry(0.12, 0.18, 32),
+      new THREE.MeshBasicMaterial({ color: "#f0c86f", depthTest: false, side: THREE.DoubleSide }),
+    );
+    editorMarker.rotation.x = -Math.PI / 2;
+    editorMarker.position.y = 0.055;
+    editorMarker.renderOrder = 20;
+    editorMarker.visible = false;
+    editor.add(editorMarker);
+    scene.add(architecture.root, glazing.root, doors.root, furniture.root, lights.root, curtains.root, debug.root, editor);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(presentation.span * 14, presentation.span * 14),
@@ -295,6 +331,11 @@ export function SmartHomeScene({
       lights,
       curtains,
       debug,
+      editor,
+      editorMarker,
+      editorStart: null,
+      editMode,
+      restoredEditorView: Boolean(savedEditorView),
       materials,
       hemisphere,
       sun,
@@ -328,7 +369,11 @@ export function SmartHomeScene({
       drag.moved = false;
       drag.x = event.clientX;
       drag.y = event.clientY;
-      renderer.domElement.setPointerCapture?.(event.pointerId);
+      try {
+        renderer.domElement.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic QA events may not own an active browser pointer.
+      }
     };
     const onPointerMove = (event) => {
       if (!drag.active) return;
@@ -351,6 +396,33 @@ export function SmartHomeScene({
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
+      if (runtime.editMode) {
+        const intersection = raycaster.intersectObjects([...furniture.pickables, ...architecture.floorMeshes], true)[0];
+        const furnitureId = intersection?.object?.userData?.furnitureId;
+        if (furnitureId) {
+          runtime.editorStart = null;
+          editorMarker.visible = false;
+          callbacksRef.current.onRemoveFurniture?.(furnitureId);
+          return;
+        }
+        if (intersection?.object?.userData?.roomId && intersection.point) {
+          const point = [
+            Math.round(intersection.point.x * 20) / 20,
+            Math.round(intersection.point.z * 20) / 20,
+          ];
+          if (!runtime.editorStart) {
+            runtime.editorStart = point;
+            editorMarker.position.set(point[0], 0.055, point[1]);
+            editorMarker.visible = true;
+          } else {
+            const start = runtime.editorStart;
+            runtime.editorStart = null;
+            editorMarker.visible = false;
+            callbacksRef.current.onAddWall?.(start, point);
+          }
+        }
+        return;
+      }
       const targets = [...lights.hitTargets, ...curtains.hitTargets, ...architecture.floorMeshes];
       const hit = raycaster.intersectObjects(targets, true)[0]?.object;
       if (!hit) return;
@@ -414,6 +486,13 @@ export function SmartHomeScene({
     onReady?.();
 
     return () => {
+      if (runtime.editMode && !runtime.flightMode) {
+        editorViewRef.current = {
+          position: runtime.camera.position.toArray(),
+          target: runtime.controls.target.toArray(),
+          up: runtime.camera.up.toArray(),
+        };
+      }
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
@@ -434,25 +513,36 @@ export function SmartHomeScene({
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    runtime.editMode = editMode;
+    if (!editMode) {
+      editorViewRef.current = null;
+      runtime.editorStart = null;
+      runtime.editorMarker.visible = false;
+    }
+  }, [editMode]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
     runtime.mode = mode;
     runtime.architecture.labels.visible = mode === "rooms";
     const { width, height } = hostRef.current?.getBoundingClientRect() ?? {};
     if (width && height) applyPresentationSafeFrame(runtime, hostRef.current, width, height);
-  }, [mode, selectedRoomId, presentationLayoutKey]);
+  }, [mode, selectedRoomId, presentationLayoutKey, manifest]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     const climate = devices.filter((device) => device.kind === "climate");
     updateRoomAppearance(runtime.architecture, selectedRoomId, climate);
-  }, [devices, selectedRoomId]);
+  }, [devices, selectedRoomId, manifest]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     runtime.reducedMotion = reducedMotion;
     runtime.controls.enableDamping = !reducedMotion;
-  }, [reducedMotion]);
+  }, [reducedMotion, manifest]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -470,7 +560,7 @@ export function SmartHomeScene({
     runtime.sun.intensity = away ? 0.08 : evening ? 0.18 : 1.55;
     runtime.renderer.toneMappingExposure = evening ? 0.98 : away ? 0.66 : 0.92;
     runtime.sceneLightFactor = evening ? 1.05 : away ? 0.72 : 0.42;
-  }, [scenarioId]);
+  }, [scenarioId, manifest]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -479,7 +569,7 @@ export function SmartHomeScene({
       debugState.bounds || debugState.collisions || debugState.doorArcs || debugState.overlay,
     );
     updateDebugLayer(runtime.debug, debugState);
-  }, [debugState]);
+  }, [debugState, manifest]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -512,6 +602,11 @@ export function SmartHomeScene({
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime || runtime.flightMode) return;
+    if (runtime.restoredEditorView) {
+      runtime.restoredEditorView = false;
+      runtime.viewPreset = viewPreset;
+      return;
+    }
     runtime.viewPreset = viewPreset;
     runtime.camera.up.set(0, viewPreset === "top" ? 0 : 1, viewPreset === "top" ? -1 : 0);
     const preset = presentationContract(manifest).presets[viewPreset];
@@ -550,7 +645,7 @@ export function SmartHomeScene({
     runtime.cameraGoal.progress = 0;
   }, [viewPreset, selectedRoomId, manifest, qaGlazingId, qaGlazingSide]);
 
-  return <div ref={hostRef} className="scene-viewport" data-mode={mode} />;
+  return <div ref={hostRef} className="scene-viewport" data-mode={mode} data-edit-mode={editMode} />;
 }
 
 export default SmartHomeScene;
