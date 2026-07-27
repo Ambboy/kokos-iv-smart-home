@@ -9,7 +9,7 @@ const LIGHT_PALETTES = {
     sunColor: "#fff1d6",
     sunIntensity: 1.5,
     exposure: 0.94,
-    sceneLightFactor: 0.38,
+    sceneLightFactor: 0.65,
     fixtureColor: "#fff1d6",
   },
   evening: {

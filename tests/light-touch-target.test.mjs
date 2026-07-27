@@ -46,27 +46,50 @@ test("point light fixtures expose finger-sized invisible touch targets", () => {
 
   assert.ok(pointTargets.length > 0);
   pointTargets.forEach((target) => {
-    assert.ok(target.geometry.parameters.radius >= EXPANDED_EDGE_OFFSET);
+    const size = new THREE.Box3().setFromObject(target, true).getSize(new THREE.Vector3());
+    assert.ok(size.x >= EXPANDED_EDGE_OFFSET * 2);
+    assert.ok(size.z >= EXPANDED_EDGE_OFFSET * 2);
     assert.equal(target.material.opacity, 0);
     assert.equal(target.material.colorWrite, false);
+    assert.equal(target.material.depthWrite, false);
   });
 });
 
-test("every fixture kind preserves its exact invisible touch-target radius", () => {
-  const expectedRadius = {
-    downlight: 0.24,
-    track: 0.24,
-    pendant: 0.28,
-    surface: 0.28,
-    linear: 0.22,
-  };
+test("every invisible touch target encloses its complete visible fixture", () => {
+  const epsilon = 1e-6;
   assert.equal(lighting.hitTargets.length, 59);
   lighting.hitTargets.forEach((target) => {
-    assert.equal(
-      target.geometry.parameters.radius,
-      expectedRadius[target.userData.fixtureKind],
-      target.userData.fixtureId,
-    );
+    const visual = lighting.root.getObjectByName(target.userData.fixtureId);
+    assert.ok(visual, target.userData.fixtureId);
+    const visualBounds = new THREE.Box3().setFromObject(visual, true);
+    const targetBounds = new THREE.Box3().setFromObject(target, true);
+    assert.ok(targetBounds.min.x <= visualBounds.min.x + epsilon, target.userData.fixtureId);
+    assert.ok(targetBounds.min.y <= visualBounds.min.y + epsilon, target.userData.fixtureId);
+    assert.ok(targetBounds.min.z <= visualBounds.min.z + epsilon, target.userData.fixtureId);
+    assert.ok(targetBounds.max.x >= visualBounds.max.x - epsilon, target.userData.fixtureId);
+    assert.ok(targetBounds.max.y >= visualBounds.max.y - epsilon, target.userData.fixtureId);
+    assert.ok(targetBounds.max.z >= visualBounds.max.z - epsilon, target.userData.fixtureId);
+  });
+});
+
+test("all fixture kinds raycast at their centers and visible bounds edges", () => {
+  lighting.root.updateMatrixWorld(true);
+  const raycaster = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+
+  lighting.hitTargets.forEach((target) => {
+    const bounds = new THREE.Box3().setFromObject(target, true);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const edge = new THREE.Vector3(bounds.max.x - 1e-4, center.y, center.z);
+
+    [center, edge].forEach((point) => {
+      raycaster.set(new THREE.Vector3(point.x, bounds.max.y + 2, point.z), down);
+      assert.ok(raycaster.intersectObject(target, false).length > 0, target.userData.fixtureId);
+    });
+
+    raycaster.set(new THREE.Vector3(center.x, bounds.max.y + 2, center.z), down);
+    const nearest = raycaster.intersectObjects(lighting.hitTargets, false)[0]?.object;
+    assert.equal(nearest?.userData.deviceId, target.userData.deviceId, target.userData.fixtureId);
   });
 });
 
