@@ -213,6 +213,49 @@ test("scenario fixture color reaches physical lights and visible emitters", () =
   });
 });
 
+test("active dining light is unmistakable in both day and evening scenarios", () => {
+  const lighting = buildProjectLighting();
+  const rig = lighting.rigs.get("device-light-dining");
+  assert.ok(rig);
+
+  const applyScenario = (scenarioId) => {
+    const palette = scenarioLightPalette(scenarioId);
+    updateLights(lighting, 0, {
+      devices: devicesForScenario(projectManifest, scenarioId),
+      reducedMotion: true,
+      sceneFactor: palette.sceneLightFactor,
+      lightColor: palette.fixtureColor,
+    });
+    return {
+      physical: Math.max(...rig.lights.map(({ intensity }) => intensity)),
+      emitter: Math.max(...rig.materials.map(({ emissiveIntensity }) => emissiveIntensity)),
+      fixtureGlow: rig.glowMaterial.opacity,
+      floorTrace: Math.max(...rig.zones.map(({ material }) => material.opacity)),
+    };
+  };
+
+  const day = applyScenario("day");
+  assert.ok(day.physical >= 6.5, JSON.stringify(day));
+  assert.ok(day.emitter >= 1.3, JSON.stringify(day));
+  assert.ok(day.fixtureGlow >= 0.2, JSON.stringify(day));
+  assert.ok(day.floorTrace >= 0.38, JSON.stringify(day));
+
+  const evening = applyScenario("evening");
+  assert.ok(evening.physical >= day.physical * 6, JSON.stringify({ day, evening }));
+  assert.ok(evening.floorTrace >= 0.85, JSON.stringify({ day, evening }));
+  assert.ok(evening.floorTrace >= day.floorTrace * 2, JSON.stringify({ day, evening }));
+});
+
+test("floor traces keep a broad visible pool instead of a tiny hot center", () => {
+  const zone = buildProjectLighting().rigs.get("device-light-dining")?.zones[0];
+  assert.ok(zone?.material?.map?.image?.data);
+  const { data, width, height } = zone.material.map.image;
+  const x = Math.floor(width * 0.75);
+  const y = Math.floor(height * 0.5);
+  const alpha = data[(y * width + x) * 4 + 3];
+  assert.ok(alpha >= 90, `floor-trace quarter-radius alpha is ${alpha}`);
+});
+
 test("decorative floor glows stay inside their assigned rooms", () => {
   const lighting = buildProjectLighting();
   lighting.root.updateMatrixWorld(true);

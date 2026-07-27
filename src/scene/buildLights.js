@@ -3,7 +3,7 @@ import { roundedBox } from "./sceneUtils.js";
 
 const LIGHT_COLOR = new THREE.Color("#ffd7a0");
 const LIGHT_EASING = 8.5;
-const PHYSICAL_LIGHT_SCALE = 18;
+const PHYSICAL_LIGHT_SCALE = 30;
 const POINT_FIXTURE_VISUAL_SCALE = 3;
 const SUPPORTED_FIXTURE_KINDS = new Set([
   "downlight",
@@ -31,7 +31,7 @@ function fixtureKind(definition, fixture) {
   return SUPPORTED_FIXTURE_KINDS.has(kind) ? kind : "downlight";
 }
 
-function createRadialGlowTexture() {
+function createRadialGlowTexture({ falloff = 2.25, name = "light-zone-radial-glow" } = {}) {
   const size = 64;
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
@@ -39,7 +39,7 @@ function createRadialGlowTexture() {
       const dx = ((x + 0.5) / size) * 2 - 1;
       const dy = ((y + 0.5) / size) * 2 - 1;
       const radius = Math.hypot(dx, dy);
-      const alpha = Math.round(255 * Math.max(0, 1 - radius) ** 2.25);
+      const alpha = Math.round(255 * Math.max(0, 1 - radius) ** falloff);
       const offset = (y * size + x) * 4;
       data[offset] = 255;
       data[offset + 1] = 218;
@@ -50,7 +50,7 @@ function createRadialGlowTexture() {
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
-  texture.name = "light-zone-radial-glow";
+  texture.name = name;
   return texture;
 }
 
@@ -327,11 +327,20 @@ function addTrackRails(group, definition, hardwareMaterial) {
   });
 }
 
-function createHitTarget(definition, fixture) {
+function createHitTarget(definition, fixture, visual) {
   const kind = fixtureKind(definition, fixture);
-  const radius = kind === "pendant" || kind === "surface" ? 0.28 : kind === "linear" ? 0.22 : 0.24;
+  visual.updateMatrixWorld(true);
+  const visualBounds = new THREE.Box3().setFromObject(visual, true);
+  const size = visualBounds.getSize(new THREE.Vector3());
+  const center = visualBounds.getCenter(new THREE.Vector3());
+  const minimumWidth = kind === "pendant" || kind === "surface" ? 0.56 : 0.48;
+  size.set(
+    Math.max(size.x + 0.08, minimumWidth),
+    Math.max(size.y + 0.08, 0.18),
+    Math.max(size.z + 0.08, minimumWidth),
+  );
   const hit = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 8, 6),
+    new THREE.BoxGeometry(size.x, size.y, size.z),
     new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
@@ -339,13 +348,14 @@ function createHitTarget(definition, fixture) {
       colorWrite: false,
     }),
   );
-  hit.position.set(...fixture.position);
+  hit.position.copy(center);
   hit.name = `hit-${fixture.id}`;
   hit.userData = {
     kind: "light-fixture",
     fixtureKind: kind,
     deviceId: definition.deviceId,
     fixtureId: fixture.id,
+    targetSize: size.toArray(),
   };
   return hit;
 }
@@ -409,12 +419,20 @@ function createZoneGlow(definition, fixture, sourceIndex, glowTexture, room) {
     fixtureKind: kind,
     deviceId: definition.deviceId,
     roomId: definition.roomId,
-    maxOpacity: kind === "linear" ? 0.28 : kind === "pendant" ? 0.45 : kind === "surface" ? 0.4 : 0.42,
+    maxOpacity: kind === "linear" ? 0.45 : kind === "pendant" ? 0.62 : kind === "surface" ? 0.58 : 0.6,
   };
   return zone;
 }
 
-function createLightRig(definition, manifest, materials, device, glowTexture, shadowBudget) {
+function createLightRig(
+  definition,
+  manifest,
+  materials,
+  device,
+  fixtureGlowTexture,
+  floorGlowTexture,
+  shadowBudget,
+) {
   const room = manifest.rooms.find((item) => item.id === definition.roomId);
   const group = new THREE.Group();
   group.name = definition.id;
@@ -442,7 +460,7 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
 
   const hitTargets = [];
   const glowMaterial = new THREE.SpriteMaterial({
-    map: glowTexture,
+    map: fixtureGlowTexture,
     color: LIGHT_COLOR,
     transparent: true,
     opacity: 0,
@@ -450,8 +468,9 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
     blending: THREE.AdditiveBlending,
   });
   definition.fixtures.forEach((fixture) => {
-    group.add(addFixtureVisual(definition, fixture, room, emitterMaterial, hardwareMaterial));
-    const hit = createHitTarget(definition, fixture);
+    const visual = addFixtureVisual(definition, fixture, room, emitterMaterial, hardwareMaterial);
+    group.add(visual);
+    const hit = createHitTarget(definition, fixture, visual);
     hitTargets.push(hit);
     group.add(hit);
 
@@ -487,7 +506,7 @@ function createLightRig(definition, manifest, materials, device, glowTexture, sh
   });
 
   definition.fixtures.forEach((fixture, index) => {
-    const zone = createZoneGlow(definition, fixture, index, glowTexture, room);
+    const zone = createZoneGlow(definition, fixture, index, floorGlowTexture, room);
     zones.push(zone);
     group.add(zone);
   });
@@ -517,7 +536,11 @@ export function buildLights({ manifest, materials, devices = manifest.devices })
   const rigs = new Map();
   const hitTargets = [];
   const deviceById = new Map(devices.map((device) => [device.id, device]));
-  const glowTexture = createRadialGlowTexture();
+  const fixtureGlowTexture = createRadialGlowTexture();
+  const floorGlowTexture = createRadialGlowTexture({
+    falloff: 1.2,
+    name: "light-floor-radial-glow",
+  });
   const shadowBudget = { remaining: 2 };
 
   manifest.lights.forEach((definition) => {
@@ -526,7 +549,8 @@ export function buildLights({ manifest, materials, devices = manifest.devices })
       manifest,
       materials,
       deviceById.get(definition.deviceId),
-      glowTexture,
+      fixtureGlowTexture,
+      floorGlowTexture,
       shadowBudget,
     );
     root.add(rig.group);
@@ -598,16 +622,24 @@ export function updateLights(
     });
     rig.materials.forEach((material) => {
       material.emissive.copy(activeLightColor);
-      material.emissiveIntensity = level * (3.2 + 4 * Math.min(factor, 1.25));
+      material.emissiveIntensity = level * (5.5 + 5 * Math.min(factor, 1.25));
       material.color.copy(activeLightColor).multiplyScalar(THREE.MathUtils.lerp(0.24, 0.9, level));
     });
     if (rig.glowMaterial) {
       rig.glowMaterial.color.copy(activeLightColor);
-      rig.glowMaterial.opacity = level * (0.26 + 0.3 * Math.min(factor, 1.2));
+      rig.glowMaterial.opacity = Math.min(
+        0.9,
+        level * (0.8 + 0.5 * Math.min(factor, 1.2)),
+      );
     }
     rig.zones.forEach((zone) => {
       zone.material.color.copy(activeLightColor);
-      zone.material.opacity = level * (zone.userData.maxOpacity ?? 0.15) * factor;
+      zone.material.opacity = Math.min(
+        0.9,
+        level
+          * (zone.userData.maxOpacity ?? 0.15)
+          * (2.8 + 1.2 * Math.min(factor, 1.4)),
+      );
       zone.visible = level > 0.001 && factor > 0.001;
     });
   });
