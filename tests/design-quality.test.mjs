@@ -8,9 +8,18 @@ import {
   updateArchitecturePresentation,
 } from "../src/scene/buildArchitecture.js";
 import { buildDoors } from "../src/scene/buildDoors.js";
-import { buildLights } from "../src/scene/buildLights.js";
-import { devicesForScenario } from "../src/scene/sceneScenario.js";
+import { buildLights, updateLights } from "../src/scene/buildLights.js";
+import { devicesForScenario, scenarioLightPalette } from "../src/scene/sceneScenario.js";
 import { createMaterialRegistry } from "../src/scene/sceneUtils.js";
+
+let cachedProjectLighting;
+function buildProjectLighting() {
+  cachedProjectLighting ??= buildLights({
+    manifest: projectManifest,
+    materials: createMaterialRegistry(projectManifest),
+  });
+  return cachedProjectLighting;
+}
 
 function buildProjectArchitecture() {
   const material = new THREE.MeshStandardMaterial();
@@ -171,11 +180,41 @@ test("evening scenario layers decorative and task lighting", () => {
   assert.ok(new Set(levels.values()).size >= 5);
 });
 
-test("decorative floor glows stay inside their assigned rooms", () => {
-  const lighting = buildLights({
-    manifest: projectManifest,
-    materials: createMaterialRegistry(projectManifest),
+test("day and evening use distinctly different light color palettes", () => {
+  const day = scenarioLightPalette("day");
+  const evening = scenarioLightPalette("evening");
+  const dayFixture = new THREE.Color(day.fixtureColor);
+  const eveningFixture = new THREE.Color(evening.fixtureColor);
+  const dayWarmth = dayFixture.r - dayFixture.b;
+  const eveningWarmth = eveningFixture.r - eveningFixture.b;
+
+  assert.ok(eveningWarmth >= dayWarmth + 0.25);
+  assert.notEqual(day.background, evening.background);
+  assert.ok(
+    evening.sceneLightFactor / evening.environmentIntensity
+      >= (day.sceneLightFactor / day.environmentIntensity) * 3,
+  );
+});
+
+test("scenario fixture color reaches physical lights and visible emitters", () => {
+  const lighting = buildProjectLighting();
+  const evening = scenarioLightPalette("evening");
+  updateLights(lighting, 0, {
+    reducedMotion: true,
+    sceneFactor: evening.sceneLightFactor,
+    lightColor: evening.fixtureColor,
   });
+  const expected = new THREE.Color(evening.fixtureColor);
+  lighting.rigs.forEach((rig) => {
+    rig.lights.forEach((light) => assert.ok(light.color.equals(expected)));
+    rig.materials.forEach((material) => assert.ok(material.emissive.equals(expected)));
+    assert.ok(rig.glowMaterial.color.equals(expected));
+    rig.zones.forEach((zone) => assert.ok(zone.material.color.equals(expected)));
+  });
+});
+
+test("decorative floor glows stay inside their assigned rooms", () => {
+  const lighting = buildProjectLighting();
   lighting.root.updateMatrixWorld(true);
   lighting.rigs.forEach((rig) => {
     const room = projectManifest.rooms.find(({ id }) => id === rig.definition.roomId);
@@ -190,10 +229,7 @@ test("decorative floor glows stay inside their assigned rooms", () => {
 });
 
 test("physical fixture lights stay inside their room boundaries", () => {
-  const lighting = buildLights({
-    manifest: projectManifest,
-    materials: createMaterialRegistry(projectManifest),
-  });
+  const lighting = buildProjectLighting();
   lighting.rigs.forEach((rig) => {
     const room = projectManifest.rooms.find(({ id }) => id === rig.definition.roomId);
     rig.lights.forEach((light) => {
@@ -206,17 +242,43 @@ test("physical fixture lights stay inside their room boundaries", () => {
   });
 });
 
-test("visible point-light hardware reads clearly in the overview", () => {
-  const lighting = buildLights({
-    manifest: projectManifest,
-    materials: createMaterialRegistry(projectManifest),
+test("fixture bodies never swap to marker-only LODs", () => {
+  const lighting = buildProjectLighting();
+  projectManifest.lights.flatMap(({ fixtures }) => fixtures).forEach(({ id: fixtureId }) => {
+    const visual = lighting.root.getObjectByName(fixtureId);
+    assert.ok(visual, fixtureId);
+    assert.equal(Boolean(visual.getObjectByProperty("type", "LOD")), false, fixtureId);
   });
+});
+
+test("only point-light detail uses the exact three-times presentation scale", () => {
+  const lighting = buildProjectLighting();
+  const pointKinds = new Set(["downlight", "track", "surface"]);
+  projectManifest.lights.forEach((definition) => {
+    definition.fixtures.forEach((fixture) => {
+      const kind = fixture.kind ?? definition.kind ?? "downlight";
+      const visual = lighting.root.getObjectByName(fixture.id);
+      const detail = visual?.children.find(({ type }) => type === "Group");
+      assert.ok(detail, fixture.id);
+      assert.deepEqual(visual.scale.toArray(), [1, 1, 1], fixture.id);
+      assert.deepEqual(visual.position.toArray(), fixture.position, fixture.id);
+      assert.deepEqual(
+        detail.scale.toArray(),
+        pointKinds.has(kind) ? [3, 3, 3] : [1, 1, 1],
+        fixture.id,
+      );
+    });
+  });
+});
+
+test("visible point-light hardware keeps the three-times overview dimensions", () => {
+  const lighting = buildProjectLighting();
   ["light-hall-spot-01", "light-living-track-spot-01"].forEach((fixtureId) => {
     const visual = lighting.root.getObjectByName(fixtureId);
     assert.ok(visual, fixtureId);
     visual.updateMatrixWorld(true);
     const size = new THREE.Box3().setFromObject(visual, true).getSize(new THREE.Vector3());
-    assert.ok(Math.max(size.x, size.z) >= 0.14, `${fixtureId}: ${size.toArray().join(",")}`);
+    assert.ok(Math.max(size.x, size.z) >= 0.42, `${fixtureId}: ${size.toArray().join(",")}`);
   });
 });
 

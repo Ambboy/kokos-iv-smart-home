@@ -13,6 +13,7 @@ import { buildFurniture } from "./buildFurniture.js";
 import { buildGlazing } from "./buildGlazing.js";
 import { buildLights, updateLights } from "./buildLights.js";
 import { computePresentationZoom } from "./presentationLayout.js";
+import { scenarioLightPalette } from "./sceneScenario.js";
 import { createMaterialRegistry, disposeObject, pointAlongWall, wallFrame, wallInteriorNormal } from "./sceneUtils.js";
 
 function presentationContract(manifest) {
@@ -344,7 +345,8 @@ export function SmartHomeScene({
       ground,
       cameraGoal,
       flightMode: false,
-      sceneLightFactor: 0.55,
+      sceneLightFactor: scenarioLightPalette(scenarioId).sceneLightFactor,
+      fixtureLightColor: new THREE.Color(scenarioLightPalette(scenarioId).fixtureColor),
       mode,
       reducedMotion,
       presentation,
@@ -470,6 +472,7 @@ export function SmartHomeScene({
       updateLights(lights, delta, {
         devices: deviceMapRef.current,
         sceneFactor: runtime.sceneLightFactor,
+        lightColor: runtime.fixtureLightColor,
         reducedMotion: runtime.reducedMotion,
       });
       updateCurtains(curtains, deviceMapRef.current, delta, runtime.reducedMotion);
@@ -540,20 +543,19 @@ export function SmartHomeScene({
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    const evening = scenarioId === "evening";
-    const away = scenarioId === "away";
-    runtime.scene.background.set(evening ? "#211a14" : away ? "#0b0a09" : "#292720");
+    const palette = scenarioLightPalette(scenarioId);
+    runtime.scene.background.set(palette.background);
     runtime.scene.fog.color.copy(runtime.scene.background);
-    runtime.ground.material.color.set(evening ? "#19130f" : away ? "#090807" : "#242119");
-    runtime.scene.environmentIntensity = evening ? 0.32 : away ? 0.08 : 0.58;
-    runtime.hemisphere.color.set(evening ? "#d9c2a4" : away ? "#aeb5b2" : "#d9ddcf");
-    runtime.hemisphere.groundColor.set(evening ? "#332318" : away ? "#151310" : "#4a3d31");
-    runtime.hemisphere.intensity = away ? 0.22 : evening ? 0.5 : 0.82;
-    runtime.sun.color.set(evening ? "#ffbd80" : "#ffe4bd");
-    runtime.sun.intensity = away ? 0.08 : evening ? 0.18 : 1.55;
-
-    runtime.renderer.toneMappingExposure = evening ? 1.08 : away ? 0.66 : 0.92;
-    runtime.sceneLightFactor = evening ? 1.18 : away ? 0.72 : 0.42;
+    runtime.ground.material.color.set(palette.ground);
+    runtime.scene.environmentIntensity = palette.environmentIntensity;
+    runtime.hemisphere.color.set(palette.hemisphereColor);
+    runtime.hemisphere.groundColor.set(palette.hemisphereGroundColor);
+    runtime.hemisphere.intensity = palette.hemisphereIntensity;
+    runtime.sun.color.set(palette.sunColor);
+    runtime.sun.intensity = palette.sunIntensity;
+    runtime.renderer.toneMappingExposure = palette.exposure;
+    runtime.sceneLightFactor = palette.sceneLightFactor;
+    runtime.fixtureLightColor.set(palette.fixtureColor);
   }, [scenarioId, manifest]);
 
   useEffect(() => {

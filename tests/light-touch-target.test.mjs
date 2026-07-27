@@ -52,6 +52,24 @@ test("point light fixtures expose finger-sized invisible touch targets", () => {
   });
 });
 
+test("every fixture kind preserves its exact invisible touch-target radius", () => {
+  const expectedRadius = {
+    downlight: 0.24,
+    track: 0.24,
+    pendant: 0.28,
+    surface: 0.28,
+    linear: 0.22,
+  };
+  assert.equal(lighting.hitTargets.length, 59);
+  lighting.hitTargets.forEach((target) => {
+    assert.equal(
+      target.geometry.parameters.radius,
+      expectedRadius[target.userData.fixtureKind],
+      target.userData.fixtureId,
+    );
+  });
+});
+
 test("real downlight and track layouts raycast at fixture centers and expanded edges", async (t) => {
   for (const layout of layouts) {
     await t.test(layout.kind, () => {
