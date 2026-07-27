@@ -4,7 +4,7 @@ import { roundedBox } from "./sceneUtils.js";
 const LIGHT_COLOR = new THREE.Color("#ffd7a0");
 const LIGHT_EASING = 8.5;
 const PHYSICAL_LIGHT_SCALE = 18;
-const OVERVIEW_LOD_DISTANCE = 10.5;
+const POINT_FIXTURE_VISUAL_SCALE = 3;
 const SUPPORTED_FIXTURE_KINDS = new Set([
   "downlight",
   "track",
@@ -224,16 +224,6 @@ function addLinear(parent, fixture, emitterMaterial, hardwareMaterial) {
   parent.add(profile, emitter);
 }
 
-function createOverviewMarker(kind, emitterMaterial) {
-  const radius = kind === "surface" ? 0.05 : 0.038;
-  const marker = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, 0.006, 14),
-    emitterMaterial,
-  );
-  marker.position.y = -0.009;
-  return marker;
-}
-
 function addFixtureVisual(definition, fixture, room, emitterMaterial, hardwareMaterial) {
   const kind = fixtureKind(definition, fixture);
   const fixtureGroup = new THREE.Group();
@@ -255,15 +245,10 @@ function addFixtureVisual(definition, fixture, room, emitterMaterial, hardwareMa
   else if (kind === "linear") addLinear(detail, fixture, emitterMaterial, hardwareMaterial);
   else addDownlight(detail, emitterMaterial, hardwareMaterial);
 
-  if (kind === "pendant" || kind === "linear") {
-    fixtureGroup.add(detail);
-  } else {
-    const lod = new THREE.LOD();
-    const overview = createOverviewMarker(kind, emitterMaterial);
-    lod.addLevel(detail, 0);
-    lod.addLevel(overview, OVERVIEW_LOD_DISTANCE);
-    fixtureGroup.add(lod);
+  if (kind === "downlight" || kind === "track" || kind === "surface") {
+    detail.scale.setScalar(POINT_FIXTURE_VISUAL_SCALE);
   }
+  fixtureGroup.add(detail);
 
   tagDevice(fixtureGroup, definition.deviceId, fixture.id);
   return fixtureGroup;
@@ -574,10 +559,12 @@ export function updateLights(
   const {
     devices = undefined,
     sceneFactor = 1,
+    lightColor = LIGHT_COLOR,
     reducedMotion = false,
   } = options;
   const rigs = lighting?.rigs ?? lighting;
   if (!(rigs instanceof Map)) return false;
+  const activeLightColor = lightColor?.isColor ? lightColor : new THREE.Color(lightColor);
 
   if (devices) {
     const deviceById = devices instanceof Map
@@ -606,16 +593,20 @@ export function updateLights(
     const level = THREE.MathUtils.clamp(rig.current, 0, 1);
     const factor = Math.max(0, sceneFactor);
     rig.lights.forEach((light, index) => {
+      light.color.copy(activeLightColor);
       light.intensity = rig.maxIntensity * PHYSICAL_LIGHT_SCALE * (rig.lightWeights[index] ?? 1) * level * factor;
     });
     rig.materials.forEach((material) => {
+      material.emissive.copy(activeLightColor);
       material.emissiveIntensity = level * (3.2 + 4 * Math.min(factor, 1.25));
-      material.color.copy(LIGHT_COLOR).multiplyScalar(THREE.MathUtils.lerp(0.24, 0.9, level));
+      material.color.copy(activeLightColor).multiplyScalar(THREE.MathUtils.lerp(0.24, 0.9, level));
     });
     if (rig.glowMaterial) {
+      rig.glowMaterial.color.copy(activeLightColor);
       rig.glowMaterial.opacity = level * (0.26 + 0.3 * Math.min(factor, 1.2));
     }
     rig.zones.forEach((zone) => {
+      zone.material.color.copy(activeLightColor);
       zone.material.opacity = level * (zone.userData.maxOpacity ?? 0.15) * factor;
       zone.visible = level > 0.001 && factor > 0.001;
     });
